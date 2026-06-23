@@ -1,6 +1,8 @@
 import { apiFetch } from '../api/client'
 
-export type MenuCategory = 'SUSHI' | 'ROLL' | 'SIDE' | 'DRINK' | 'DESSERT'
+// 백엔드 MenuCategory enum 값. 새 카테고리가 추가돼도 프론트가 알 필요 없도록 string으로 둔다 —
+// 실제 탭 목록은 메뉴 조회 응답에서 동적으로 뽑아서 그린다.
+export type MenuCategory = string
 
 export interface MenuItem {
   id: number
