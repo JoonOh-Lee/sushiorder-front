@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { ApiError } from '../../api/types'
 import { createSession } from '../../customer/sessionApi'
 import { setSessionToken } from '../../customer/session'
+import MenuListPage from './MenuListPage'
 
 type Status = 'loading' | 'ready' | 'error'
 
@@ -36,17 +37,28 @@ function OrderEntryPage() {
   }, [tableId])
 
   if (status === 'loading') {
-    return <p>세션을 연결하는 중입니다...</p>
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface">
+        <p className="text-muted">세션을 연결하는 중입니다...</p>
+      </div>
+    )
   }
 
   if (status === 'error') {
-    return <p>{errorMessage}</p>
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface px-4">
+        <p className="text-center text-red-600">{errorMessage}</p>
+      </div>
+    )
   }
 
   return (
-    <div>
-      <h1>주문 페이지</h1>
-      <p>테이블: {tableId}</p>
+    <div className="min-h-screen bg-surface">
+      <header className="bg-primary-500 px-4 py-5 text-white">
+        <p className="text-sm font-medium text-primary-50">테이블 {tableId}</p>
+        <h1 className="text-xl font-bold">오늘 뭐 드실래요?</h1>
+      </header>
+      <MenuListPage />
     </div>
   )
 }
