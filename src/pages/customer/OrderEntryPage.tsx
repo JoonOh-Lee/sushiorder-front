@@ -7,9 +7,10 @@ import { formatSeatLabel, type SeatType } from '../../customer/seat'
 import type { MenuItem } from '../../customer/menuApi'
 import MenuListPage from './MenuListPage'
 import CartPage, { type CartEntry } from './CartPage'
+import OrderStatusPage from './OrderStatusPage'
 
 type Status = 'loading' | 'ready' | 'error'
-type View = 'menu' | 'cart'
+type View = 'menu' | 'cart' | 'orders'
 
 function OrderEntryPage() {
   const { tableId } = useParams<{ tableId: string }>()
@@ -98,14 +99,27 @@ function OrderEntryPage() {
           setCart({})
           setView('menu')
         }}
+        onViewOrders={() => {
+          setCart({})
+          setView('orders')
+        }}
       />
     )
+  }
+
+  if (view === 'orders') {
+    return <OrderStatusPage onBack={() => setView('menu')} />
   }
 
   return (
     <div className="min-h-screen bg-surface pb-24">
       <header className="bg-primary-500 px-4 py-5 text-white">
-        {seat && <p className="text-sm font-medium text-primary-50">{formatSeatLabel(seat.seatType, seat.tableNumber)}</p>}
+        <div className="flex items-center justify-between">
+          {seat && <p className="text-sm font-medium text-primary-50">{formatSeatLabel(seat.seatType, seat.tableNumber)}</p>}
+          <button type="button" onClick={() => setView('orders')} className="text-sm font-medium text-primary-50 underline">
+            주문 현황
+          </button>
+        </div>
         <h1 className="text-xl font-bold">오늘 뭐 드실래요?</h1>
       </header>
       <MenuListPage
