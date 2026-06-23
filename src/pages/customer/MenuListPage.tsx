@@ -110,8 +110,19 @@ function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
               return (
                 <li key={menu.id} className="flex gap-3 rounded-card bg-surface-raised p-3 shadow-sm">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary-50">
-                    {menu.imageUrl && (
-                      <img src={menu.imageUrl} alt={menu.name} className="h-full w-full object-cover" />
+                    {menu.imageUrl ? (
+                      <img
+                        src={menu.imageUrl}
+                        alt={menu.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null
+                          e.currentTarget.src = '/nodata.svg'
+                          e.currentTarget.className = 'h-full w-full object-contain p-3'
+                        }}
+                      />
+                    ) : (
+                      <img src="/nodata.svg" alt="이미지 없음" className="h-full w-full object-contain p-3" />
                     )}
                   </div>
                   <div className="flex flex-1 flex-col justify-center">
