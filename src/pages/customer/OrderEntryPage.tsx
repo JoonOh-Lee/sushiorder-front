@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { ApiError } from '../../api/types'
-import { createSession } from '../../customer/sessionApi'
-import { setSessionToken } from '../../customer/session'
+import { createSession, getSessionByToken, type TableSessionResponse } from '../../customer/sessionApi'
+import { getSessionToken, setSessionToken } from '../../customer/session'
 import { formatSeatLabel, type SeatType } from '../../customer/seat'
 import type { MenuItem } from '../../customer/menuApi'
 import MenuListPage from './MenuListPage'
@@ -31,9 +31,22 @@ function OrderEntryPage() {
         if (!tableId || Number.isNaN(numericTableId)) {
           throw new ApiError('잘못된 테이블 정보입니다.')
         }
-        return createSession(numericTableId)
+
+        const existingToken = getSessionToken()
+        if (!existingToken) {
+          return createSession(numericTableId)
+        }
+
+        return getSessionByToken(existingToken)
+          .then((session) => {
+            if (session.tableId !== numericTableId || session.status !== 'ACTIVE') {
+              throw new Error('기존 세션을 재사용할 수 없습니다.')
+            }
+            return session
+          })
+          .catch(() => createSession(numericTableId))
       })
-      .then(({ sessionToken, seatType, tableNumber }) => {
+      .then(({ sessionToken, seatType, tableNumber }: TableSessionResponse) => {
         setSessionToken(sessionToken)
         setSeat({ seatType, tableNumber })
         setStatus('ready')
