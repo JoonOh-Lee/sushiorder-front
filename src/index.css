@@ -5,31 +5,23 @@
   --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
     Roboto, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 
-  --color-primary-50: #fff1ec;
-  --color-primary-100: #ffe0d4;
-  --color-primary-200: #ffc1a9;
-  --color-primary-300: #ff9c79;
-  --color-primary-400: #ff7849;
-  --color-primary-500: #ff5722;
-  --color-primary-600: #e8430f;
-  --color-primary-700: #c1340c;
-
-  --color-secondary-50: #e6fbfa;
-  --color-secondary-100: #c1f4f1;
-  --color-secondary-200: #8ee9e3;
-  --color-secondary-300: #51d8cf;
-  --color-secondary-400: #1ec4b9;
-  --color-secondary-500: #0da89e;
-  --color-secondary-600: #0b8a82;
+  --color-primary-50: #eaf6fe;
+  --color-primary-100: #d3edfd;
+  --color-primary-200: #a7dbfa;
+  --color-primary-300: #7ac9f8;
+  --color-primary-400: #38bdf8;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-700: #0369a1;
 
   --color-accent-300: #ffd76a;
   --color-accent-400: #ffc233;
   --color-accent-500: #ffaf00;
 
-  --color-surface: #fffaf3;
+  --color-surface: #f6f9fb;
   --color-surface-raised: #ffffff;
-  --color-ink: #2b2118;
-  --color-muted: #8a7e72;
+  --color-ink: #1e293b;
+  --color-muted: #64748b;
 
   --radius-card: 1.25rem;
 }

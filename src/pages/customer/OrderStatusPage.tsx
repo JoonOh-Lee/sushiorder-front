@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ApiError } from '../../api/types'
 import { getMyOrders, type Order, type OrderStatus } from '../../customer/orderApi'
+import { formatSeatLabel, type SeatType } from '../../customer/seat'
 
 type Status = 'loading' | 'ready' | 'error'
 
@@ -15,16 +16,17 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
 
 const STATUS_BADGE_CLASS: Record<OrderStatus, string> = {
   PENDING: 'bg-accent-400 text-white',
-  CONFIRMED: 'bg-secondary-500 text-white',
-  COMPLETED: 'bg-primary-500 text-white',
+  CONFIRMED: 'bg-primary-400 text-white',
+  COMPLETED: 'bg-primary-600 text-white',
   CANCELLED: 'bg-ink/10 text-muted',
 }
 
 interface OrderStatusPageProps {
+  seat: { seatType: SeatType; tableNumber: number } | null
   onBack: () => void
 }
 
-function OrderStatusPage({ onBack }: OrderStatusPageProps) {
+function OrderStatusPage({ seat, onBack }: OrderStatusPageProps) {
   const [status, setStatus] = useState<Status>('loading')
   const [errorMessage, setErrorMessage] = useState('')
   const [orders, setOrders] = useState<Order[]>([])
@@ -57,10 +59,18 @@ function OrderStatusPage({ onBack }: OrderStatusPageProps) {
   return (
     <div className="min-h-screen bg-surface pb-6">
       <header className="flex items-center gap-3 bg-primary-500 px-4 py-5 text-white">
-        <button type="button" onClick={onBack} className="text-lg">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="뒤로"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-xl transition-transform active:scale-90"
+        >
           ←
         </button>
-        <h1 className="text-xl font-bold">주문 현황</h1>
+        <div>
+          <h1 className="text-xl font-bold">주문 현황</h1>
+          {seat && <p className="text-sm font-medium text-primary-50">{formatSeatLabel(seat.seatType, seat.tableNumber)}</p>}
+        </div>
       </header>
 
       <div className="px-4 py-4">
