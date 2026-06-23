@@ -13,11 +13,12 @@ interface CartPageProps {
   onQuantityChange: (menu: MenuItem, quantity: number) => void
   onBack: () => void
   onOrderComplete: () => void
+  onViewOrders: () => void
 }
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
-function CartPage({ entries, onQuantityChange, onBack, onOrderComplete }: CartPageProps) {
+function CartPage({ entries, onQuantityChange, onBack, onOrderComplete, onViewOrders }: CartPageProps) {
   const [status, setStatus] = useState<Status>('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null)
@@ -42,13 +43,22 @@ function CartPage({ entries, onQuantityChange, onBack, onOrderComplete }: CartPa
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-surface px-4 text-center">
         <p className="text-lg font-bold text-ink">주문이 접수됐습니다!</p>
         <p className="text-muted">총 {completedOrder.totalPrice.toLocaleString()}원</p>
-        <button
-          type="button"
-          onClick={onOrderComplete}
-          className="mt-4 rounded-full bg-primary-500 px-6 py-2.5 text-sm font-semibold text-white"
-        >
-          메뉴 더 보기
-        </button>
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={onOrderComplete}
+            className="rounded-full bg-primary-50 px-6 py-2.5 text-sm font-semibold text-primary-600"
+          >
+            메뉴 더 보기
+          </button>
+          <button
+            type="button"
+            onClick={onViewOrders}
+            className="rounded-full bg-primary-500 px-6 py-2.5 text-sm font-semibold text-white"
+          >
+            주문 현황 보기
+          </button>
+        </div>
       </div>
     )
   }

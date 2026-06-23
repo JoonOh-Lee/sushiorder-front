@@ -35,3 +35,7 @@ export function placeOrder(items: PlaceOrderItem[]): Promise<Order> {
     },
   })
 }
+
+export function getMyOrders(): Promise<Order[]> {
+  return customerFetch<Order[]>('/api/v1/order/session')
+}
