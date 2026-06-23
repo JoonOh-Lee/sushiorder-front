@@ -1,7 +1,10 @@
 import { apiFetch } from '../api/client'
+import type { SeatType } from './seat'
 
 interface CreateSessionResponse {
   sessionToken: string
+  seatType: SeatType
+  tableNumber: number
 }
 
 export function createSession(tableId: number): Promise<CreateSessionResponse> {
