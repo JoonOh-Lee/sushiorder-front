@@ -38,11 +38,17 @@ const CATEGORY_LABEL: Record<string, string> = {
 // 알려진 카테고리의 표시 순서. 목록에 없는 카테고리는 뒤에 가나다순으로 붙는다.
 const CATEGORY_ORDER = Object.keys(CATEGORY_LABEL)
 
+// 카테고리 전체에 적용되는 안내 — 카드마다 반복하면 지저분하고 좌측 레일은 좁아서 못 넣으니,
+// 해당 카테고리를 선택했을 때 목록 위에 한 번만 보여준다.
+const CATEGORY_NOTE: Record<string, string> = {
+  PREMIUM_SUSHI: '일일 한정 수량으로 제공돼요. 소진 시 품절될 수 있습니다.',
+}
+
 function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
   const [status, setStatus] = useState<Status>('loading')
   const [errorMessage, setErrorMessage] = useState('')
   const [menus, setMenus] = useState<MenuItem[]>([])
-  const [category, setCategory] = useState<string>('ALL')
+  const [category, setCategory] = useState<string>('')
   const [reactions, setReactions] = useState<Record<number, Reaction>>({})
   const [activeMenu, setActiveMenu] = useState<MenuItem | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -140,29 +146,37 @@ function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
     return <p className="px-4 py-12 text-center text-base text-red-600">{errorMessage}</p>
   }
 
-  const filtered = category === 'ALL' ? menus : menus.filter((menu) => menu.category === category)
+  const activeCategory = category || categories[0] || ''
+  const filtered = menus.filter((menu) => menu.category === activeCategory)
+  const categoryNote = CATEGORY_NOTE[activeCategory]
 
   return (
     <div className="flex bg-surface pb-6">
-      <div className="sticky top-0 flex h-screen w-[88px] shrink-0 flex-col overflow-y-auto bg-surface-raised py-2 shadow-sm">
-        {['ALL', ...categories].map((value) => (
+      <div className="sticky top-0 flex h-screen w-[104px] shrink-0 flex-col overflow-y-auto bg-surface-raised py-2 shadow-sm">
+        {categories.map((value) => (
           <button
             key={value}
             type="button"
-            aria-pressed={category === value}
+            aria-pressed={activeCategory === value}
             onClick={() => setCategory(value)}
             className={
-              category === value
-                ? 'border-l-4 border-primary-500 bg-primary-50 px-2 py-4 text-sm font-bold text-primary-600 transition-colors'
-                : 'border-l-4 border-transparent px-2 py-4 text-sm font-semibold text-ink/70 transition-colors'
+              activeCategory === value
+                ? 'border-l-4 border-primary-500 bg-primary-50 px-1.5 py-4 text-center text-xs font-bold leading-tight text-primary-600 transition-colors'
+                : 'border-l-4 border-transparent px-1.5 py-4 text-center text-xs font-semibold leading-tight text-ink/70 transition-colors'
             }
           >
-            {value === 'ALL' ? '전체' : CATEGORY_LABEL[value] ?? value}
+            {CATEGORY_LABEL[value] ?? value}
           </button>
         ))}
       </div>
 
       <div className="min-w-0 flex-1 px-3 pt-3">
+        {categoryNote && (
+          <div className="mb-3 flex items-center gap-2 rounded-xl bg-accent-400/15 px-3 py-2.5 text-sm font-semibold text-ink">
+            <span className="shrink-0 rounded-full bg-accent-500 px-2 py-0.5 text-xs font-bold text-white">한정수량</span>
+            <span>{categoryNote}</span>
+          </div>
+        )}
         {filtered.length === 0 ? (
           <p className="py-12 text-center text-base text-muted">표시할 메뉴가 없습니다.</p>
         ) : (

@@ -8,6 +8,7 @@ import type { MenuItem } from '../../customer/menuApi'
 import MenuListPage from './MenuListPage'
 import CartPage, { type CartEntry } from './CartPage'
 import OrderStatusPage from './OrderStatusPage'
+import NoticeBanner from './NoticeBanner'
 
 type Status = 'loading' | 'ready' | 'error'
 type View = 'menu' | 'orders'
@@ -112,6 +113,7 @@ function OrderEntryPage() {
           주문 현황
         </button>
       </header>
+      <NoticeBanner />
       <MenuListPage
         cartQuantities={Object.fromEntries(Object.entries(cart).map(([id, entry]) => [id, entry.quantity]))}
         onQuantityChange={handleQuantityChange}
