@@ -20,3 +20,11 @@ export interface MenuItem {
 export function fetchMenus(): Promise<MenuItem[]> {
   return apiFetch<MenuItem[]>('/api/v1/menu?activeOnly=true')
 }
+
+export function likeMenu(id: number): Promise<void> {
+  return apiFetch<void>(`/api/v1/menu/${id}/like`, { method: 'POST' })
+}
+
+export function dislikeMenu(id: number): Promise<void> {
+  return apiFetch<void>(`/api/v1/menu/${id}/dislike`, { method: 'POST' })
+}
