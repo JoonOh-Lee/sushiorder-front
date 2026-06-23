@@ -5,6 +5,11 @@ import { dislikeMenu, fetchMenus, likeMenu, type MenuCategory, type MenuItem } f
 type Status = 'loading' | 'ready' | 'error'
 type Reaction = 'like' | 'dislike'
 
+interface MenuListPageProps {
+  cartQuantities: Record<number, number>
+  onQuantityChange: (menu: MenuItem, quantity: number) => void
+}
+
 const CATEGORIES: { value: MenuCategory | 'ALL'; label: string }[] = [
   { value: 'ALL', label: '전체' },
   { value: 'SUSHI', label: '초밥' },
@@ -14,7 +19,7 @@ const CATEGORIES: { value: MenuCategory | 'ALL'; label: string }[] = [
   { value: 'DESSERT', label: '디저트' },
 ]
 
-function MenuListPage() {
+function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
   const [status, setStatus] = useState<Status>('loading')
   const [errorMessage, setErrorMessage] = useState('')
   const [menus, setMenus] = useState<MenuItem[]>([])
@@ -101,6 +106,7 @@ function MenuListPage() {
           <ul className="grid gap-3">
             {filtered.map((menu) => {
               const reaction = reactions[menu.id]
+              const quantity = cartQuantities[menu.id] ?? 0
               return (
                 <li key={menu.id} className="flex gap-3 rounded-card bg-surface-raised p-3 shadow-sm">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-secondary-50">
@@ -120,31 +126,61 @@ function MenuListPage() {
                     <p className="mt-0.5 text-sm text-muted">{menu.description}</p>
                     <p className="mt-1 font-bold text-primary-600">{menu.price.toLocaleString()}원</p>
 
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        type="button"
-                        disabled={Boolean(reaction)}
-                        onClick={() => handleReact(menu.id, 'like')}
-                        className={
-                          reaction === 'like'
-                            ? 'rounded-full bg-primary-500 px-2.5 py-1 text-xs font-medium text-white'
-                            : 'rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-600 disabled:opacity-50'
-                        }
-                      >
-                        좋아요 {menu.likeCount}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={Boolean(reaction)}
-                        onClick={() => handleReact(menu.id, 'dislike')}
-                        className={
-                          reaction === 'dislike'
-                            ? 'rounded-full bg-ink/70 px-2.5 py-1 text-xs font-medium text-white'
-                            : 'rounded-full bg-ink/5 px-2.5 py-1 text-xs font-medium text-muted disabled:opacity-50'
-                        }
-                      >
-                        싫어요 {menu.dislikeCount}
-                      </button>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={Boolean(reaction)}
+                          onClick={() => handleReact(menu.id, 'like')}
+                          className={
+                            reaction === 'like'
+                              ? 'rounded-full bg-primary-500 px-2.5 py-1 text-xs font-medium text-white'
+                              : 'rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-600 disabled:opacity-50'
+                          }
+                        >
+                          좋아요 {menu.likeCount}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={Boolean(reaction)}
+                          onClick={() => handleReact(menu.id, 'dislike')}
+                          className={
+                            reaction === 'dislike'
+                              ? 'rounded-full bg-ink/70 px-2.5 py-1 text-xs font-medium text-white'
+                              : 'rounded-full bg-ink/5 px-2.5 py-1 text-xs font-medium text-muted disabled:opacity-50'
+                          }
+                        >
+                          싫어요 {menu.dislikeCount}
+                        </button>
+                      </div>
+
+                      {quantity === 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => onQuantityChange(menu, 1)}
+                          className="rounded-full bg-primary-500 px-3 py-1 text-xs font-semibold text-white"
+                        >
+                          담기
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onQuantityChange(menu, quantity - 1)}
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-600"
+                          >
+                            −
+                          </button>
+                          <span className="w-4 text-center text-sm font-semibold text-ink">{quantity}</span>
+                          <button
+                            type="button"
+                            onClick={() => onQuantityChange(menu, quantity + 1)}
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-500 text-sm font-bold text-white"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </li>
