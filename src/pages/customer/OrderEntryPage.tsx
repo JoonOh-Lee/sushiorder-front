@@ -3,14 +3,14 @@ import { useParams } from 'react-router-dom'
 import { ApiError } from '../../api/types'
 import { createSession, getSessionByToken, type TableSessionResponse } from '../../customer/sessionApi'
 import { getSessionToken, setSessionToken } from '../../customer/session'
-import { formatSeatLabel, type SeatType } from '../../customer/seat'
+import type { SeatType } from '../../customer/seat'
 import type { MenuItem } from '../../customer/menuApi'
 import MenuListPage from './MenuListPage'
 import CartPage, { type CartEntry } from './CartPage'
 import OrderStatusPage from './OrderStatusPage'
 
 type Status = 'loading' | 'ready' | 'error'
-type View = 'menu' | 'cart' | 'orders'
+type View = 'menu' | 'orders'
 
 function OrderEntryPage() {
   const { tableId } = useParams<{ tableId: string }>()
@@ -19,6 +19,8 @@ function OrderEntryPage() {
   const [seat, setSeat] = useState<{ seatType: SeatType; tableNumber: number } | null>(null)
   const [view, setView] = useState<View>('menu')
   const [cart, setCart] = useState<Record<number, CartEntry>>({})
+  const [isCartOpen, setIsCartOpen] = useState(false)
+  const [cartSheetKey, setCartSheetKey] = useState(0)
   const requestedRef = useRef(false)
 
   useEffect(() => {
@@ -69,6 +71,11 @@ function OrderEntryPage() {
     })
   }
 
+  function openCart() {
+    setCartSheetKey((k) => k + 1)
+    setIsCartOpen(true)
+  }
+
   if (status === 'loading') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-surface">
@@ -85,58 +92,70 @@ function OrderEntryPage() {
     )
   }
 
+  if (view === 'orders') {
+    return <OrderStatusPage seat={seat} onBack={() => setView('menu')} />
+  }
+
   const cartEntries = Object.values(cart)
   const cartCount = cartEntries.reduce((sum, entry) => sum + entry.quantity, 0)
   const cartTotal = cartEntries.reduce((sum, entry) => sum + entry.menu.price * entry.quantity, 0)
 
-  if (view === 'cart') {
-    return (
-      <CartPage
-        entries={cartEntries}
-        onQuantityChange={handleQuantityChange}
-        onBack={() => setView('menu')}
-        onOrderComplete={() => {
-          setCart({})
-          setView('menu')
-        }}
-        onViewOrders={() => {
-          setCart({})
-          setView('orders')
-        }}
-      />
-    )
-  }
-
-  if (view === 'orders') {
-    return <OrderStatusPage onBack={() => setView('menu')} />
-  }
-
   return (
     <div className="min-h-screen bg-surface pb-24">
-      <header className="bg-primary-500 px-4 py-5 text-white">
-        <div className="flex items-center justify-between">
-          {seat && <p className="text-sm font-medium text-primary-50">{formatSeatLabel(seat.seatType, seat.tableNumber)}</p>}
-          <button type="button" onClick={() => setView('orders')} className="text-sm font-medium text-primary-50 underline">
-            주문 현황
-          </button>
-        </div>
-        <h1 className="text-xl font-bold">오늘 뭐 드실래요?</h1>
+      <header className="flex items-center justify-between bg-white px-4 py-2 shadow-sm">
+        <img src="/logo.png" alt="온다스시" className="h-20 w-auto object-contain" />
+        <button
+          type="button"
+          onClick={() => setView('orders')}
+          className="rounded-full bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95"
+        >
+          주문 현황
+        </button>
       </header>
       <MenuListPage
         cartQuantities={Object.fromEntries(Object.entries(cart).map(([id, entry]) => [id, entry.quantity]))}
         onQuantityChange={handleQuantityChange}
       />
 
-      {cartCount > 0 && (
-        <button
-          type="button"
-          onClick={() => setView('cart')}
-          className="fixed bottom-0 left-0 right-0 flex items-center justify-between bg-primary-500 px-5 py-4 text-white shadow-[0_-4px_12px_rgba(0,0,0,0.15)]"
+      <button
+        type="button"
+        onClick={openCart}
+        className={`fixed bottom-0 left-0 right-0 flex items-center justify-between bg-primary-500 px-5 py-4 text-white shadow-[0_-4px_12px_rgba(0,0,0,0.15)] transition-transform duration-300 ${
+          cartCount > 0 ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
+        <span className="text-base font-semibold">장바구니 {cartCount}개</span>
+        <span className="text-lg font-bold">{cartTotal.toLocaleString()}원</span>
+      </button>
+
+      <div
+        className={`fixed inset-0 z-20 transition-opacity duration-300 ${
+          isCartOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+      >
+        <div className="absolute inset-0 bg-black/40" onClick={() => setIsCartOpen(false)} />
+        <div
+          className={`absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-3xl bg-surface transition-transform duration-300 ${
+            isCartOpen ? 'translate-y-0' : 'translate-y-full'
+          }`}
         >
-          <span className="text-sm font-medium">장바구니 {cartCount}개</span>
-          <span className="text-base font-bold">{cartTotal.toLocaleString()}원</span>
-        </button>
-      )}
+          <CartPage
+            key={cartSheetKey}
+            entries={cartEntries}
+            onQuantityChange={handleQuantityChange}
+            onBack={() => setIsCartOpen(false)}
+            onOrderComplete={() => {
+              setCart({})
+              setIsCartOpen(false)
+            }}
+            onViewOrders={() => {
+              setCart({})
+              setIsCartOpen(false)
+              setView('orders')
+            }}
+          />
+        </div>
+      </div>
     </div>
   )
 }
