@@ -19,7 +19,7 @@ function LoginPage() {
     login(username, password)
       .then((auth) => {
         setStaffAuth(auth)
-        navigate('/staff')
+        navigate(auth.stationId === null ? '/staff/station' : '/staff')
       })
       .catch((err: unknown) => {
         setErrorMessage(err instanceof ApiError ? err.message : '로그인에 실패했습니다.')

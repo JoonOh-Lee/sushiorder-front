@@ -28,6 +28,12 @@ export function clearStaffAuth(): void {
   localStorage.removeItem(STAFF_AUTH_KEY)
 }
 
+export function updateStaffAuthStationId(stationId: number): void {
+  const current = getStaffAuth()
+  if (!current) return
+  setStaffAuth({ ...current, stationId })
+}
+
 export function getStaffToken(): string | null {
   return getStaffAuth()?.token ?? null
 }
