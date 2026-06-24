@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ApiError } from '../../api/types'
 import { placeOrder, type Order } from '../../customer/orderApi'
 import type { MenuItem } from '../../customer/menuApi'
+import { formatClock, formatWaitTime, useOrderWindow } from '../../customer/orderWindow'
 
 export interface CartEntry {
   menu: MenuItem
@@ -22,8 +23,10 @@ function CartPage({ entries, onQuantityChange, onBack, onOrderComplete, onViewOr
   const [status, setStatus] = useState<Status>('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null)
+  const orderWindow = useOrderWindow()
 
   const totalPrice = entries.reduce((sum, entry) => sum + entry.menu.price * entry.quantity, 0)
+  const canOrder = orderWindow.status === 'open' || orderWindow.status === 'closing-soon'
 
   function handleSubmit() {
     setStatus('submitting')
@@ -122,13 +125,29 @@ function CartPage({ entries, onQuantityChange, onBack, onOrderComplete, onViewOr
 
       {entries.length > 0 && (
         <div className="sticky bottom-0 bg-surface-raised px-4 py-4 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+          {orderWindow.status === 'before-open' && (
+            <p className="mb-2 text-center text-sm font-semibold text-red-600">
+              아직 주문 시작 전이에요. {formatWaitTime(orderWindow.remainingMs)} 후(11:50)부터 주문하실 수 있어요.
+            </p>
+          )}
+          {orderWindow.status === 'closing-soon' && (
+            <p className="mb-2 text-center text-sm font-semibold text-accent-500">
+              주문 마감까지 {formatClock(orderWindow.remainingMs)} 남았어요.
+            </p>
+          )}
+          {orderWindow.status === 'closed' && (
+            <p className="mb-2 text-center text-sm font-semibold text-red-600">
+              죄송해요, 오늘 주문은 마감됐어요. 내일 11:50부터 다시 주문하실 수 있어요.
+            </p>
+          )}
+
           <div className="mb-2 flex items-center justify-between text-base text-muted">
             <span>총 {entries.reduce((sum, e) => sum + e.quantity, 0)}개</span>
             <span className="text-lg font-bold text-ink">{totalPrice.toLocaleString()}원</span>
           </div>
           <button
             type="button"
-            disabled={status === 'submitting'}
+            disabled={status === 'submitting' || !canOrder}
             onClick={handleSubmit}
             className="w-full rounded-full bg-primary-500 py-3.5 text-base font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
           >
