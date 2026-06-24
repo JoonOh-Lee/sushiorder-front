@@ -11,6 +11,8 @@ export interface MenuItem {
   price: number
   category: MenuCategory
   imageUrl: string
+  ingredients: string
+  allergyInfo: string
   stockCount: number | null
   limitedStock: boolean
   likeCount: number
