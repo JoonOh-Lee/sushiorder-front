@@ -57,6 +57,14 @@ function StaffHomePage() {
           변경
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={() => navigate('/staff/calls')}
+        className="mt-3 rounded-card bg-primary-500 p-4 text-left text-base font-semibold text-white shadow-sm transition-transform active:scale-[0.98]"
+      >
+        호출 현황 보기
+      </button>
     </div>
   )
 }
