@@ -17,6 +17,10 @@ function StaffHomePage() {
       navigate('/staff/login')
       return
     }
+    if (current.stationId === null) {
+      navigate('/staff/station')
+      return
+    }
     setAuth(current)
   }, [navigate])
 
@@ -43,12 +47,15 @@ function StaffHomePage() {
         </button>
       </div>
 
-      <div className="mt-6 rounded-card bg-surface-raised p-4 shadow-sm">
-        {auth.stationId === null ? (
-          <p className="text-base font-semibold text-red-600">담당 스테이션이 지정되지 않았습니다.</p>
-        ) : (
-          <p className="text-base text-ink">담당 스테이션: {auth.stationId}</p>
-        )}
+      <div className="mt-6 flex items-center justify-between rounded-card bg-surface-raised p-4 shadow-sm">
+        <p className="text-base text-ink">담당 스테이션 ID: {auth.stationId}</p>
+        <button
+          type="button"
+          onClick={() => navigate('/staff/station')}
+          className="rounded-full bg-primary-50 px-3.5 py-2 text-sm font-semibold text-primary-600 transition-transform active:scale-95"
+        >
+          변경
+        </button>
       </div>
     </div>
   )
