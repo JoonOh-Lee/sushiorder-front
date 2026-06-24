@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { ApiError } from '../../api/types'
 import { dislikeMenu, fetchMenus, likeMenu, type MenuItem } from '../../customer/menuApi'
 import { MenuThumbnail } from '../../customer/MenuThumbnail'
+import { ImageLightbox } from '../../customer/ImageLightbox'
 import { CartIcon, ThumbDownIcon, ThumbUpIcon } from '../../customer/icons'
-import MenuQuantitySheet from './MenuQuantitySheet'
+import MenuDetailSheet from './MenuDetailSheet'
 
 type Status = 'loading' | 'ready' | 'error'
 type Reaction = 'like' | 'dislike'
@@ -53,6 +54,7 @@ function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
   const [activeMenu, setActiveMenu] = useState<MenuItem | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [draftQuantity, setDraftQuantity] = useState(1)
+  const [zoomImage, setZoomImage] = useState<string | null>(null)
 
   const categories = useMemo(() => {
     const present = Array.from(new Set(menus.map((menu) => menu.category)))
@@ -125,7 +127,7 @@ function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
     })
   }
 
-  function openQuantitySheet(menu: MenuItem) {
+  function openDetailSheet(menu: MenuItem) {
     setActiveMenu(menu)
     setDraftQuantity(cartQuantities[menu.id] ?? 1)
     setIsSheetOpen(true)
@@ -185,64 +187,77 @@ function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
               const reaction = reactions[menu.id]
               const quantity = cartQuantities[menu.id] ?? 0
               return (
-                <li key={menu.id} className="flex gap-4 rounded-card bg-surface-raised p-4 shadow-sm">
-                  <MenuThumbnail menu={menu} className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-primary-50" />
-                  <div className="flex flex-1 flex-col justify-center">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-bold text-ink">{menu.name}</h3>
-                      {menu.limitedStock && (
-                        <span className="shrink-0 whitespace-nowrap rounded-full bg-accent-400 px-2.5 py-1 text-xs font-semibold text-white">
-                          마감임박
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-base text-muted">{menu.description}</p>
-                    <p className="mt-1 text-lg font-bold text-primary-600">{menu.price.toLocaleString()}원</p>
-
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          aria-label="좋아요"
-                          onClick={() => handleReact(menu.id, 'like')}
-                          className={
-                            reaction === 'like'
-                              ? 'flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1.5 text-primary-600 transition-transform active:scale-95'
-                              : 'flex items-center gap-1 rounded-full px-2.5 py-1.5 text-muted transition-transform active:scale-95'
-                          }
-                        >
-                          <ThumbUpIcon className="h-5 w-5" />
-                          <span className="text-sm font-semibold">{menu.likeCount}</span>
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="싫어요"
-                          onClick={() => handleReact(menu.id, 'dislike')}
-                          className={
-                            reaction === 'dislike'
-                              ? 'flex items-center gap-1 rounded-full bg-ink/10 px-2.5 py-1.5 text-ink transition-transform active:scale-95'
-                              : 'flex items-center gap-1 rounded-full px-2.5 py-1.5 text-muted transition-transform active:scale-95'
-                          }
-                        >
-                          <ThumbDownIcon className="h-5 w-5" />
-                          <span className="text-sm font-semibold">{menu.dislikeCount}</span>
-                        </button>
-                      </div>
-
-                      <button
-                        type="button"
-                        aria-label={`${menu.name} 담기`}
-                        onClick={() => openQuantitySheet(menu)}
-                        className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white transition-transform active:scale-90"
-                      >
-                        <CartIcon className="h-5 w-5" />
-                        {quantity > 0 && (
-                          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent-500 text-[11px] font-bold text-white">
-                            {quantity}
+                <li key={menu.id} className="rounded-card bg-surface-raised p-4 shadow-sm">
+                  <div className="flex w-full gap-4">
+                    <button
+                      type="button"
+                      aria-label={`${menu.name} 사진 확대`}
+                      onClick={() => menu.imageUrl && setZoomImage(menu.imageUrl)}
+                      className="shrink-0"
+                    >
+                      <MenuThumbnail menu={menu} className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-primary-50" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openDetailSheet(menu)}
+                      className="flex flex-1 flex-col justify-center text-left"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-bold text-ink">{menu.name}</h3>
+                        {menu.limitedStock && (
+                          <span className="shrink-0 whitespace-nowrap rounded-full bg-accent-400 px-2.5 py-1 text-xs font-semibold text-white">
+                            마감임박
                           </span>
                         )}
+                      </div>
+                      <p className="mt-1 text-base text-muted">{menu.description}</p>
+                      <p className="mt-1 text-lg font-bold text-primary-600">{menu.price.toLocaleString()}원</p>
+                    </button>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        aria-label="좋아요"
+                        onClick={() => handleReact(menu.id, 'like')}
+                        className={
+                          reaction === 'like'
+                            ? 'flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1.5 text-primary-600 transition-transform active:scale-95'
+                            : 'flex items-center gap-1 rounded-full px-2.5 py-1.5 text-muted transition-transform active:scale-95'
+                        }
+                      >
+                        <ThumbUpIcon className="h-5 w-5" />
+                        <span className="text-sm font-semibold">{menu.likeCount}</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="싫어요"
+                        onClick={() => handleReact(menu.id, 'dislike')}
+                        className={
+                          reaction === 'dislike'
+                            ? 'flex items-center gap-1 rounded-full bg-ink/10 px-2.5 py-1.5 text-ink transition-transform active:scale-95'
+                            : 'flex items-center gap-1 rounded-full px-2.5 py-1.5 text-muted transition-transform active:scale-95'
+                        }
+                      >
+                        <ThumbDownIcon className="h-5 w-5" />
+                        <span className="text-sm font-semibold">{menu.dislikeCount}</span>
                       </button>
                     </div>
+
+                    <button
+                      type="button"
+                      aria-label={`${menu.name} 담기`}
+                      onClick={() => openDetailSheet(menu)}
+                      className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white transition-transform active:scale-90"
+                    >
+                      <CartIcon className="h-5 w-5" />
+                      {quantity > 0 && (
+                        <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent-500 text-[11px] font-bold text-white">
+                          {quantity}
+                        </span>
+                      )}
+                    </button>
                   </div>
                 </li>
               )
@@ -251,7 +266,7 @@ function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
         )}
       </div>
 
-      <MenuQuantitySheet
+      <MenuDetailSheet
         menu={activeMenu}
         quantity={draftQuantity}
         isOpen={isSheetOpen}
@@ -259,7 +274,10 @@ function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
         onDecrement={() => setDraftQuantity((q) => Math.max(1, q - 1))}
         onConfirm={confirmQuantity}
         onClose={() => setIsSheetOpen(false)}
+        onImageClick={setZoomImage}
       />
+
+      <ImageLightbox imageUrl={zoomImage} onClose={() => setZoomImage(null)} />
     </div>
   )
 }
