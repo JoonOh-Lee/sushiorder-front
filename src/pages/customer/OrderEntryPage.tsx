@@ -9,6 +9,7 @@ import MenuListPage from './MenuListPage'
 import CartPage, { type CartEntry } from './CartPage'
 import OrderStatusPage from './OrderStatusPage'
 import NoticeBanner from './NoticeBanner'
+import CallStaffButton from './CallStaffButton'
 
 type Status = 'loading' | 'ready' | 'error'
 type View = 'menu' | 'orders'
@@ -105,13 +106,16 @@ function OrderEntryPage() {
     <div className="min-h-screen bg-surface pb-24">
       <header className="flex items-center justify-between bg-white px-4 py-2 shadow-sm">
         <img src="/logo.png" alt="온다스시" className="h-20 w-auto object-contain" />
-        <button
-          type="button"
-          onClick={() => setView('orders')}
-          className="rounded-full bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95"
-        >
-          주문 현황
-        </button>
+        <div className="flex items-center gap-2">
+          <CallStaffButton />
+          <button
+            type="button"
+            onClick={() => setView('orders')}
+            className="rounded-full bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95"
+          >
+            주문 현황
+          </button>
+        </div>
       </header>
       <NoticeBanner />
       <MenuListPage
