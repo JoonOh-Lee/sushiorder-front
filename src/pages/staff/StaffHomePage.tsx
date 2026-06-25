@@ -60,6 +60,14 @@ function StaffHomePage() {
 
       <button
         type="button"
+        onClick={() => navigate('/staff/orders')}
+        className="mt-3 rounded-card bg-primary-500 p-4 text-left text-base font-semibold text-white shadow-sm transition-transform active:scale-[0.98]"
+      >
+        주문 현황 보기
+      </button>
+
+      <button
+        type="button"
         onClick={() => navigate('/staff/calls')}
         className="mt-3 rounded-card bg-primary-500 p-4 text-left text-base font-semibold text-white shadow-sm transition-transform active:scale-[0.98]"
       >
