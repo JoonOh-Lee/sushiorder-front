@@ -1,0 +1,626 @@
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ApiError } from '../../api/types'
+import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../auth/floorPlanElementApi'
+import { listRailSegments, type RailSegment } from '../../auth/railSegmentApi'
+import { listStations, type Station } from '../../auth/stationApi'
+import { clearStaffAuth, getStaffAuth, type StaffAuth } from '../../auth/staffAuth'
+import { listStaffCalls, resolveStaffCall, type CallType, type StaffCall } from '../../auth/staffCallApi'
+import {
+  cancelStationItems,
+  completeStationItems,
+  confirmStationItems,
+  listAllActiveOrders,
+  type Order,
+  type OrderStatus,
+} from '../../auth/staffOrderApi'
+import { listTables, type RestaurantTable } from '../../auth/tableApi'
+import RailLines from '../../staff/RailLines'
+import { formatSeatLabel } from '../../staff/seatLabel'
+
+type Status = 'loading' | 'ready' | 'error'
+
+const ELEMENT_TYPE_LABEL: Record<FloorPlanElementType, string> = {
+  KITCHEN: '주방',
+  RAIL: '레일',
+  ETC: '기타',
+}
+
+const ELEMENT_TYPE_CLASS: Record<FloorPlanElementType, string> = {
+  KITCHEN: 'bg-ink/70 text-white',
+  RAIL: 'border-2 border-dashed border-primary-400 bg-primary-100/60 text-primary-700',
+  ETC: 'border-2 border-dashed border-muted bg-surface text-muted',
+}
+
+const POLL_INTERVAL_MS = 10_000
+const ACTION_ERROR_DISPLAY_MS = 4_000
+
+const ROLE_LABEL: Record<StaffAuth['role'], string> = {
+  STAFF: '직원',
+  ADMIN: '관리자',
+}
+
+const CALL_TYPE_LABEL: Record<CallType, string> = {
+  WATER_REFILL: '물 리필',
+  INQUIRY: '문의',
+  ITEM_REQUEST: '물품 요청',
+  OTHER: '기타',
+}
+
+const STATUS_LABEL: Record<OrderStatus, string> = {
+  PENDING: '접수',
+  CONFIRMED: '조리중',
+  COMPLETED: '완료',
+  CANCELLED: '취소됨',
+}
+
+const STATUS_BADGE_CLASS: Record<OrderStatus, string> = {
+  PENDING: 'bg-accent-400 text-white',
+  CONFIRMED: 'bg-primary-400 text-white',
+  COMPLETED: 'bg-primary-600 text-white',
+  CANCELLED: 'bg-ink/10 text-muted',
+}
+
+interface CallCardProps {
+  call: StaffCall
+  processing: boolean
+  onResolve: () => void
+  tableLabel?: string
+}
+
+function CallCard({ call, processing, onResolve, tableLabel }: CallCardProps) {
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-card bg-surface-raised p-4 shadow-sm">
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-red-500 px-2.5 py-1 text-xs font-semibold text-white">
+            {tableLabel ?? '호출'}
+          </span>
+          <span className="text-sm text-muted">
+            {new Date(call.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+        <p className="mt-1.5 text-lg font-bold text-ink">
+          {CALL_TYPE_LABEL[call.type]}
+          {call.itemName && ` · ${call.itemName}`}
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={processing}
+        onClick={onResolve}
+        className="shrink-0 rounded-full bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95 disabled:opacity-50"
+      >
+        {processing ? '처리 중...' : '처리완료'}
+      </button>
+    </li>
+  )
+}
+
+interface OrderCardProps {
+  order: Order
+  stationId: number
+  processing?: boolean
+  onAction?: (action: (orderId: number, stationId: number) => Promise<Order>) => void
+  tableLabel?: string
+  readOnly?: boolean
+}
+
+function OrderCard({ order, stationId, processing, onAction, tableLabel, readOnly }: OrderCardProps) {
+  const myItems = order.items.filter((item) => item.stationId === stationId)
+  const otherItems = order.items.filter((item) => item.stationId !== stationId)
+  const hasPending = myItems.some((item) => item.status === 'PENDING')
+  const hasConfirmed = myItems.some((item) => item.status === 'CONFIRMED')
+
+  return (
+    <li className="rounded-card bg-surface-raised p-4 shadow-sm">
+      <div className="flex items-center justify-between">
+        {tableLabel && (
+          <span className="rounded-full bg-accent-400 px-2.5 py-1 text-xs font-semibold text-white">{tableLabel}</span>
+        )}
+        <span className="text-sm text-muted">
+          {new Date(order.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+
+      {myItems.length > 0 && (
+        <ul className="mt-3 grid gap-1">
+          {myItems.map((item) => (
+            <li key={item.id} className="flex items-center justify-between text-sm text-ink">
+              <span>
+                {item.menuName} x{item.quantity}
+              </span>
+              <div className="flex items-center gap-2">
+                <span>{item.subtotal.toLocaleString()}원</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASS[item.status]}`}>
+                  {STATUS_LABEL[item.status]}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!readOnly && otherItems.length > 0 && (
+        <ul className="mt-2 grid gap-1 opacity-50">
+          {otherItems.map((item) => (
+            <li key={item.id} className="flex items-center justify-between text-sm text-muted">
+              <span>
+                {item.menuName} x{item.quantity} (다른 스테이션)
+              </span>
+              <span>{STATUS_LABEL[item.status]}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!readOnly && onAction && (hasPending || hasConfirmed) && (
+        <div className="mt-3 flex items-center justify-end gap-2 border-t border-primary-100 pt-3">
+          <button
+            type="button"
+            disabled={processing}
+            onClick={() => onAction(cancelStationItems)}
+            className="shrink-0 rounded-full bg-ink/10 px-4 py-2.5 text-sm font-semibold text-ink transition-transform active:scale-95 disabled:opacity-50"
+          >
+            취소
+          </button>
+          {hasPending && (
+            <button
+              type="button"
+              disabled={processing}
+              onClick={() => onAction(confirmStationItems)}
+              className="shrink-0 rounded-full bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95 disabled:opacity-50"
+            >
+              {processing ? '처리 중...' : '접수'}
+            </button>
+          )}
+          {hasConfirmed && (
+            <button
+              type="button"
+              disabled={processing}
+              onClick={() => onAction(completeStationItems)}
+              className="shrink-0 rounded-full bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95 disabled:opacity-50"
+            >
+              {processing ? '처리 중...' : '완료'}
+            </button>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function FloorBoardPage() {
+  const navigate = useNavigate()
+  const [auth] = useState<StaffAuth | null>(() => getStaffAuth())
+  const [stations, setStations] = useState<Station[]>([])
+  const [status, setStatus] = useState<Status>('loading')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [tables, setTables] = useState<RestaurantTable[]>([])
+  const [elements, setElements] = useState<FloorPlanElement[]>([])
+  const [railSegments, setRailSegments] = useState<RailSegment[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
+  const [calls, setCalls] = useState<StaffCall[]>([])
+  const stationId = auth?.stationId ?? null
+  const [processingKey, setProcessingKey] = useState<string | null>(null)
+  const [selectedTableId, setSelectedTableId] = useState<number | null>(null)
+  const [showMenu, setShowMenu] = useState(false)
+  const [showListModal, setShowListModal] = useState(false)
+
+  useEffect(() => {
+    if (!auth) {
+      navigate('/staff/login')
+      return
+    }
+    if (auth.stationId === null) {
+      navigate('/staff/station')
+    }
+  }, [auth, navigate])
+
+  useEffect(() => {
+    if (!auth || auth.stationId === null) return
+    let cancelled = false
+    listStations()
+      .then((result) => {
+        if (cancelled) return
+        setStations(result)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setStations([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [auth])
+
+  useEffect(() => {
+    if (!auth || auth.stationId === null) return
+
+    let cancelled = false
+
+    function load() {
+      Promise.all([listTables(), listFloorPlanElements(), listRailSegments(), listAllActiveOrders(), listStaffCalls()])
+        .then(([tableResult, elementResult, railResult, orderResult, callResult]) => {
+          if (cancelled) return
+          setTables(tableResult)
+          setElements(elementResult)
+          setRailSegments(railResult)
+          setOrders([...orderResult].sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
+          setCalls([...callResult].sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
+          setStatus('ready')
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return
+          setErrorMessage(err instanceof ApiError ? err.message : '현황을 불러오지 못했습니다.')
+          setStatus('error')
+        })
+    }
+
+    load()
+    const interval = setInterval(load, POLL_INTERVAL_MS)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [auth])
+
+  useEffect(() => {
+    if (!actionError) return
+    const timer = setTimeout(() => setActionError(''), ACTION_ERROR_DISPLAY_MS)
+    return () => clearTimeout(timer)
+  }, [actionError])
+
+  function handleLogout() {
+    clearStaffAuth()
+    navigate('/staff/login')
+  }
+
+  function handleOrderAction(order: Order, action: (orderId: number, stationId: number) => Promise<Order>) {
+    if (stationId === null) return
+    const key = `order-${order.id}`
+    setProcessingKey(key)
+    action(order.id, stationId)
+      .then((updated) => {
+        if (updated.status === 'PENDING' || updated.status === 'CONFIRMED') {
+          setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)))
+        } else {
+          setOrders((prev) => prev.filter((o) => o.id !== updated.id))
+        }
+        setProcessingKey(null)
+      })
+      .catch((err: unknown) => {
+        setActionError(err instanceof ApiError ? err.message : '주문 처리에 실패했습니다.')
+        setProcessingKey(null)
+      })
+  }
+
+  function handleResolveCall(call: StaffCall) {
+    const key = `call-${call.id}`
+    setProcessingKey(key)
+    resolveStaffCall(call.id)
+      .then(() => {
+        setCalls((prev) => prev.filter((c) => c.id !== call.id))
+        setProcessingKey(null)
+      })
+      .catch((err: unknown) => {
+        setActionError(err instanceof ApiError ? err.message : '호출 처리에 실패했습니다.')
+        setProcessingKey(null)
+      })
+  }
+
+  function tableHighlightClass(table: RestaurantTable): string {
+    const tableOrders = orders.filter((order) => order.tableId === table.id)
+    const tableCalls = calls.filter((call) => call.tableId === table.id)
+    const hasCall = tableCalls.length > 0
+    const hasMyActive = tableOrders.some((order) =>
+      order.items.some((item) => item.stationId === stationId && (item.status === 'PENDING' || item.status === 'CONFIRMED')),
+    )
+    const hasAnyActive = tableOrders.some((order) =>
+      order.items.some((item) => item.status === 'PENDING' || item.status === 'CONFIRMED'),
+    )
+
+    if (hasCall) return 'bg-red-500 text-white animate-pulse'
+    if (hasMyActive) return 'bg-accent-400 text-white'
+    if (hasAnyActive) return 'bg-primary-600 text-white'
+    if (table.status === 'OCCUPIED') return 'bg-ink/15 text-ink'
+    if (table.status === 'RESERVED') return 'bg-amber-200 text-ink'
+    return 'border border-primary-100 bg-surface text-muted'
+  }
+
+  const myOrders = orders.filter((order) => order.items.some((item) => item.stationId === stationId))
+  const placedTables = tables.filter((table) => table.x !== null)
+
+  function tableLabelFor(tableId: number): string | undefined {
+    const table = tables.find((t) => t.id === tableId)
+    return table ? formatSeatLabel(table.seatType, table.tableNumber) : undefined
+  }
+
+  function stationNameFor(otherStationId: number): string {
+    return stations.find((s) => s.id === otherStationId)?.name ?? `스테이션 ${otherStationId}`
+  }
+
+  const otherStationIds = Array.from(
+    new Set(
+      orders.flatMap((order) => order.items.filter((item) => item.stationId !== stationId).map((item) => item.stationId)),
+    ),
+  )
+
+  const selectedTable = tables.find((table) => table.id === selectedTableId) ?? null
+  const selectedTableOrders = selectedTable ? orders.filter((order) => order.tableId === selectedTable.id) : []
+  const selectedTableCalls = selectedTable ? calls.filter((call) => call.tableId === selectedTable.id) : []
+
+  const pendingBadgeCount =
+    calls.length +
+    myOrders.filter((order) => order.items.some((item) => item.stationId === stationId && item.status === 'PENDING'))
+      .length
+
+  if (!auth || auth.stationId === null) return null
+
+  return (
+    <div className="flex h-screen flex-col bg-surface">
+      <header className="flex items-center justify-between bg-primary-500 px-4 py-2.5 text-white">
+        <p className="text-sm font-semibold">
+          {auth.username} · {ROLE_LABEL[auth.role]} · {stationNameFor(auth.stationId)}
+        </p>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowMenu((prev) => !prev)}
+            aria-label="설정"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-base transition-transform active:scale-90"
+          >
+            ⚙
+          </button>
+          {showMenu && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+              <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false)
+                    navigate('/staff/station')
+                  }}
+                  className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
+                >
+                  스테이션 변경
+                </button>
+                {auth.role === 'ADMIN' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMenu(false)
+                      navigate('/admin/table-layout')
+                    }}
+                    className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
+                  >
+                    매장 배치 설정
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false)
+                    handleLogout()
+                  }}
+                  className="block w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                >
+                  로그아웃
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </header>
+
+      {actionError && <p className="bg-red-50 px-4 py-2 text-center text-sm text-red-600">{actionError}</p>}
+
+      {status === 'ready' && stationId !== null && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-primary-100 bg-surface-raised px-3 py-1.5 text-[11px] text-muted">
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-500" /> 호출
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-accent-400" /> 내 처리
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-primary-600" /> 타 처리중
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-ink/30" /> 착석
+          </span>
+        </div>
+      )}
+
+      <div className="relative flex-1 overflow-hidden px-3 py-3">
+        {status === 'loading' && <p className="py-10 text-center text-muted">불러오는 중입니다...</p>}
+        {status === 'error' && <p className="py-10 text-center text-red-600">{errorMessage}</p>}
+
+        {status === 'ready' && stationId !== null && (
+          <>
+            <div className="absolute inset-[5%]">
+              {elements.map((element) => (
+                <div
+                  key={`element-${element.id}`}
+                  className={`absolute flex items-center justify-center text-xs font-semibold ${ELEMENT_TYPE_CLASS[element.type]}`}
+                  style={{
+                    left: `${element.x}%`,
+                    top: `${element.y}%`,
+                    width: `${element.width}%`,
+                    height: `${element.height}%`,
+                  }}
+                >
+                  {element.label || ELEMENT_TYPE_LABEL[element.type]}
+                </div>
+              ))}
+
+              <RailLines tables={tables} segments={railSegments} />
+
+              {placedTables.map((table) => (
+                <button
+                  key={table.id}
+                  type="button"
+                  onClick={() => setSelectedTableId(table.id)}
+                  className={`absolute flex items-center justify-center rounded-lg text-xs font-semibold shadow-sm transition-transform active:scale-95 ${tableHighlightClass(table)} ${
+                    selectedTableId === table.id ? 'ring-2 ring-primary-600' : ''
+                  }`}
+                  style={{
+                    left: `${table.x}%`,
+                    top: `${table.y}%`,
+                    width: `${table.width}%`,
+                    height: `${table.height}%`,
+                  }}
+                >
+                  {formatSeatLabel(table.seatType, table.tableNumber)}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowListModal(true)}
+              className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-primary-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg transition-transform active:scale-95"
+            >
+              목록
+              {pendingBadgeCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-xs font-bold text-primary-600">
+                  {pendingBadgeCount}
+                </span>
+              )}
+            </button>
+
+            {selectedTable && (
+              <div
+                className="absolute inset-0 z-10 bg-ink/30"
+                onClick={() => setSelectedTableId(null)}
+              />
+            )}
+
+            {selectedTable && (
+              <div className="absolute inset-x-4 bottom-4 z-20 max-h-[55%] overflow-y-auto rounded-card bg-surface-raised p-4 shadow-2xl">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-bold text-ink">
+                    {formatSeatLabel(selectedTable.seatType, selectedTable.tableNumber)}
+                  </h2>
+                  <button type="button" onClick={() => setSelectedTableId(null)} className="text-sm text-muted">
+                    닫기
+                  </button>
+                </div>
+
+                {selectedTableCalls.length === 0 && selectedTableOrders.length === 0 && (
+                  <p className="mt-3 text-sm text-muted">처리할 호출/주문이 없습니다.</p>
+                )}
+
+                {selectedTableCalls.length > 0 && (
+                  <ul className="mt-3 grid gap-2">
+                    {selectedTableCalls.map((call) => (
+                      <CallCard
+                        key={call.id}
+                        call={call}
+                        processing={processingKey === `call-${call.id}`}
+                        onResolve={() => handleResolveCall(call)}
+                      />
+                    ))}
+                  </ul>
+                )}
+
+                {selectedTableOrders.length > 0 && (
+                  <ul className="mt-2 grid gap-2">
+                    {selectedTableOrders.map((order) => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        stationId={stationId}
+                        processing={processingKey === `order-${order.id}`}
+                        onAction={(action) => handleOrderAction(order, action)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {showListModal && stationId !== null && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 px-4">
+          <div className="absolute inset-0" onClick={() => setShowListModal(false)} />
+          <div className="relative flex h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-card bg-surface shadow-2xl">
+            <div className="flex items-center justify-between border-b border-primary-100 px-4 py-3">
+              <h2 className="text-lg font-bold text-ink">목록</h2>
+              <button type="button" onClick={() => setShowListModal(false)} className="text-sm text-muted">
+                닫기
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+            <h3 className="mb-2 text-sm font-bold text-ink">호출 ({calls.length})</h3>
+            {calls.length === 0 ? (
+              <p className="py-2 text-sm text-muted">처리할 호출이 없습니다.</p>
+            ) : (
+              <ul className="grid gap-3">
+                {calls.map((call) => (
+                  <CallCard
+                    key={call.id}
+                    call={call}
+                    processing={processingKey === `call-${call.id}`}
+                    onResolve={() => handleResolveCall(call)}
+                    tableLabel={tableLabelFor(call.tableId)}
+                  />
+                ))}
+              </ul>
+            )}
+
+            <h3 className="mt-6 mb-2 text-sm font-bold text-ink">내 스테이션 주문 ({myOrders.length})</h3>
+            {myOrders.length === 0 ? (
+              <p className="py-2 text-sm text-muted">처리할 주문이 없습니다.</p>
+            ) : (
+              <ul className="grid gap-3">
+                {myOrders.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    stationId={stationId}
+                    processing={processingKey === `order-${order.id}`}
+                    onAction={(action) => handleOrderAction(order, action)}
+                    tableLabel={tableLabelFor(order.tableId)}
+                  />
+                ))}
+              </ul>
+            )}
+
+            {otherStationIds.map((otherStationId) => {
+              const stationOrders = orders.filter((order) =>
+                order.items.some((item) => item.stationId === otherStationId),
+              )
+              return (
+                <div key={otherStationId}>
+                  <h3 className="mt-6 mb-2 text-sm font-bold text-ink">
+                    {stationNameFor(otherStationId)} 주문 ({stationOrders.length})
+                  </h3>
+                  <ul className="grid gap-3">
+                    {stationOrders.map((order) => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        stationId={otherStationId}
+                        tableLabel={tableLabelFor(order.tableId)}
+                        readOnly
+                      />
+                    ))}
+                  </ul>
+                </div>
+              )
+            })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default FloorBoardPage

@@ -23,11 +23,11 @@ export interface Order {
   createdAt: string
 }
 
-export function listStaffOrders(stationId: number): Promise<Order[]> {
+/** station 필터 없이 매장 전체 활성 주문 — 매장 현황판(floor board)에서 테이블별 하이라이트용 */
+export function listAllActiveOrders(): Promise<Order[]> {
   const params = new URLSearchParams()
   params.append('status', 'PENDING')
   params.append('status', 'CONFIRMED')
-  params.append('stationId', String(stationId))
   return staffFetch<Order[]>(`/api/v1/staff/order?${params.toString()}`)
 }
 
