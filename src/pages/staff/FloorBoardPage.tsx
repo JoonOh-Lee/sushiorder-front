@@ -34,6 +34,7 @@ const ELEMENT_TYPE_CLASS: Record<FloorPlanElementType, string> = {
 
 const POLL_INTERVAL_MS = 10_000
 const ACTION_ERROR_DISPLAY_MS = 4_000
+const COVERING_STORAGE_PREFIX = 'sushiorder.staff.covering.'
 
 const ROLE_LABEL: Record<StaffAuth['role'], string> = {
   STAFF: '직원',
@@ -59,6 +60,17 @@ const STATUS_BADGE_CLASS: Record<OrderStatus, string> = {
   CONFIRMED: 'bg-primary-400 text-white',
   COMPLETED: 'bg-primary-600 text-white',
   CANCELLED: 'bg-ink/10 text-muted',
+}
+
+function loadCoveringStationIds(username: string): number[] {
+  try {
+    const raw = localStorage.getItem(`${COVERING_STORAGE_PREFIX}${username}`)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((id): id is number => typeof id === 'number') : []
+  } catch {
+    return []
+  }
 }
 
 interface CallCardProps {
@@ -190,6 +202,31 @@ function OrderCard({ order, stationId, processing, onAction, tableLabel, readOnl
   )
 }
 
+function ReadOnlyOrderSummary({ order, tableLabel }: { order: Order; tableLabel?: string }) {
+  return (
+    <li className="rounded-card bg-surface-raised p-4 opacity-70 shadow-sm">
+      <div className="flex items-center justify-between">
+        {tableLabel && (
+          <span className="rounded-full bg-accent-400 px-2.5 py-1 text-xs font-semibold text-white">{tableLabel}</span>
+        )}
+        <span className="text-sm text-muted">
+          {new Date(order.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+      <ul className="mt-3 grid gap-1">
+        {order.items.map((item) => (
+          <li key={item.id} className="flex items-center justify-between text-sm text-muted">
+            <span>
+              {item.menuName} x{item.quantity}
+            </span>
+            <span>{STATUS_LABEL[item.status]}</span>
+          </li>
+        ))}
+      </ul>
+    </li>
+  )
+}
+
 function FloorBoardPage() {
   const navigate = useNavigate()
   const [auth] = useState<StaffAuth | null>(() => getStaffAuth())
@@ -203,6 +240,7 @@ function FloorBoardPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [calls, setCalls] = useState<StaffCall[]>([])
   const stationId = auth?.stationId ?? null
+  const [coveringStationIds, setCoveringStationIds] = useState<number[]>(() => (auth ? loadCoveringStationIds(auth.username) : []))
   const [processingKey, setProcessingKey] = useState<string | null>(null)
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null)
   const [showMenu, setShowMenu] = useState(false)
@@ -217,6 +255,11 @@ function FloorBoardPage() {
       navigate('/staff/station')
     }
   }, [auth, navigate])
+
+  useEffect(() => {
+    if (!auth) return
+    localStorage.setItem(`${COVERING_STORAGE_PREFIX}${auth.username}`, JSON.stringify(coveringStationIds))
+  }, [auth, coveringStationIds])
 
   useEffect(() => {
     if (!auth || auth.stationId === null) return
@@ -277,11 +320,18 @@ function FloorBoardPage() {
     navigate('/staff/login')
   }
 
-  function handleOrderAction(order: Order, action: (orderId: number, stationId: number) => Promise<Order>) {
-    if (stationId === null) return
-    const key = `order-${order.id}`
+  function addCoverage(id: number) {
+    setCoveringStationIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+  }
+
+  function removeCoverage(id: number) {
+    setCoveringStationIds((prev) => prev.filter((s) => s !== id))
+  }
+
+  function handleOrderAction(order: Order, forStationId: number, action: (orderId: number, stationId: number) => Promise<Order>) {
+    const key = `order-${order.id}-${forStationId}`
     setProcessingKey(key)
-    action(order.id, stationId)
+    action(order.id, forStationId)
       .then((updated) => {
         if (updated.status === 'PENDING' || updated.status === 'CONFIRMED') {
           setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)))
@@ -310,12 +360,16 @@ function FloorBoardPage() {
       })
   }
 
+  const responsibleStationIds = Array.from(new Set([stationId, ...coveringStationIds].filter((id): id is number => id !== null)))
+
   function tableHighlightClass(table: RestaurantTable): string {
     const tableOrders = orders.filter((order) => order.tableId === table.id)
     const tableCalls = calls.filter((call) => call.tableId === table.id)
     const hasCall = tableCalls.length > 0
     const hasMyActive = tableOrders.some((order) =>
-      order.items.some((item) => item.stationId === stationId && (item.status === 'PENDING' || item.status === 'CONFIRMED')),
+      order.items.some(
+        (item) => responsibleStationIds.includes(item.stationId) && (item.status === 'PENDING' || item.status === 'CONFIRMED'),
+      ),
     )
     const hasAnyActive = tableOrders.some((order) =>
       order.items.some((item) => item.status === 'PENDING' || item.status === 'CONFIRMED'),
@@ -329,7 +383,6 @@ function FloorBoardPage() {
     return 'border border-primary-100 bg-surface text-muted'
   }
 
-  const myOrders = orders.filter((order) => order.items.some((item) => item.stationId === stationId))
   const placedTables = tables.filter((table) => table.x !== null)
 
   function tableLabelFor(tableId: number): string | undefined {
@@ -337,13 +390,15 @@ function FloorBoardPage() {
     return table ? formatSeatLabel(table.seatType, table.tableNumber) : undefined
   }
 
-  function stationNameFor(otherStationId: number): string {
-    return stations.find((s) => s.id === otherStationId)?.name ?? `스테이션 ${otherStationId}`
+  function stationNameFor(id: number): string {
+    return stations.find((s) => s.id === id)?.name ?? `스테이션 ${id}`
   }
 
   const otherStationIds = Array.from(
     new Set(
-      orders.flatMap((order) => order.items.filter((item) => item.stationId !== stationId).map((item) => item.stationId)),
+      orders
+        .flatMap((order) => order.items.map((item) => item.stationId))
+        .filter((id) => !responsibleStationIds.includes(id)),
     ),
   )
 
@@ -353,8 +408,9 @@ function FloorBoardPage() {
 
   const pendingBadgeCount =
     calls.length +
-    myOrders.filter((order) => order.items.some((item) => item.stationId === stationId && item.status === 'PENDING'))
-      .length
+    orders.filter((order) =>
+      order.items.some((item) => responsibleStationIds.includes(item.stationId) && item.status === 'PENDING'),
+    ).length
 
   if (!auth || auth.stationId === null) return null
 
@@ -431,6 +487,11 @@ function FloorBoardPage() {
           <span className="flex items-center gap-1">
             <span className="h-2.5 w-2.5 rounded-full bg-ink/30" /> 착석
           </span>
+          {coveringStationIds.length > 0 && (
+            <span className="ml-auto text-muted">
+              커버 중: {coveringStationIds.map(stationNameFor).join(', ')}
+            </span>
+          )}
         </div>
       )}
 
@@ -528,15 +589,21 @@ function FloorBoardPage() {
 
                 {selectedTableOrders.length > 0 && (
                   <ul className="mt-2 grid gap-2">
-                    {selectedTableOrders.map((order) => (
-                      <OrderCard
-                        key={order.id}
-                        order={order}
-                        stationId={stationId}
-                        processing={processingKey === `order-${order.id}`}
-                        onAction={(action) => handleOrderAction(order, action)}
-                      />
-                    ))}
+                    {selectedTableOrders.flatMap((order) => {
+                      const relevant = responsibleStationIds.filter((id) => order.items.some((item) => item.stationId === id))
+                      if (relevant.length === 0) {
+                        return [<ReadOnlyOrderSummary key={order.id} order={order} />]
+                      }
+                      return relevant.map((stId) => (
+                        <OrderCard
+                          key={`${order.id}-${stId}`}
+                          order={order}
+                          stationId={stId}
+                          processing={processingKey === `order-${order.id}-${stId}`}
+                          onAction={(action) => handleOrderAction(order, stId, action)}
+                        />
+                      ))
+                    })}
                   </ul>
                 )}
               </div>
@@ -574,23 +641,46 @@ function FloorBoardPage() {
               </ul>
             )}
 
-            <h3 className="mt-6 mb-2 text-sm font-bold text-ink">내 스테이션 주문 ({myOrders.length})</h3>
-            {myOrders.length === 0 ? (
-              <p className="py-2 text-sm text-muted">처리할 주문이 없습니다.</p>
-            ) : (
-              <ul className="grid gap-3">
-                {myOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    stationId={stationId}
-                    processing={processingKey === `order-${order.id}`}
-                    onAction={(action) => handleOrderAction(order, action)}
-                    tableLabel={tableLabelFor(order.tableId)}
-                  />
-                ))}
-              </ul>
-            )}
+            {responsibleStationIds.map((respStationId) => {
+              const isMine = respStationId === stationId
+              const sectionOrders = orders.filter((order) =>
+                order.items.some((item) => item.stationId === respStationId),
+              )
+              return (
+                <div key={respStationId}>
+                  <div className="mt-6 mb-2 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-ink">
+                      {isMine ? '내 스테이션' : `커버 중: ${stationNameFor(respStationId)}`} 주문 ({sectionOrders.length})
+                    </h3>
+                    {!isMine && (
+                      <button
+                        type="button"
+                        onClick={() => removeCoverage(respStationId)}
+                        className="text-xs font-semibold text-muted"
+                      >
+                        커버 해제
+                      </button>
+                    )}
+                  </div>
+                  {sectionOrders.length === 0 ? (
+                    <p className="py-2 text-sm text-muted">처리할 주문이 없습니다.</p>
+                  ) : (
+                    <ul className="grid gap-3">
+                      {sectionOrders.map((order) => (
+                        <OrderCard
+                          key={order.id}
+                          order={order}
+                          stationId={respStationId}
+                          processing={processingKey === `order-${order.id}-${respStationId}`}
+                          onAction={(action) => handleOrderAction(order, respStationId, action)}
+                          tableLabel={tableLabelFor(order.tableId)}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
+            })}
 
             {otherStationIds.map((otherStationId) => {
               const stationOrders = orders.filter((order) =>
@@ -598,9 +688,18 @@ function FloorBoardPage() {
               )
               return (
                 <div key={otherStationId}>
-                  <h3 className="mt-6 mb-2 text-sm font-bold text-ink">
-                    {stationNameFor(otherStationId)} 주문 ({stationOrders.length})
-                  </h3>
+                  <div className="mt-6 mb-2 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-ink">
+                      {stationNameFor(otherStationId)} 주문 ({stationOrders.length})
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => addCoverage(otherStationId)}
+                      className="text-xs font-semibold text-primary-600"
+                    >
+                      커버하기
+                    </button>
+                  </div>
                   <ul className="grid gap-3">
                     {stationOrders.map((order) => (
                       <OrderCard
