@@ -4,6 +4,7 @@ import LoginPage from './pages/staff/LoginPage'
 import StationSelectPage from './pages/staff/StationSelectPage'
 import FloorBoardPage from './pages/staff/FloorBoardPage'
 import TableLayoutPage from './pages/admin/TableLayoutPage'
+import MenuManagePage from './pages/admin/MenuManagePage'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <Route path="/staff/login" element={<LoginPage />} />
       <Route path="/staff/station" element={<StationSelectPage />} />
       <Route path="/admin/table-layout" element={<TableLayoutPage />} />
+      <Route path="/admin/menu" element={<MenuManagePage />} />
       <Route path="/staff" element={<FloorBoardPage />} />
     </Routes>
   )
