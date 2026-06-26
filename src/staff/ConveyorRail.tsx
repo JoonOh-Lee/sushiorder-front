@@ -12,19 +12,16 @@ interface ConveyorRailProps {
 const CORNER_R_OUTER = 3
 const CORNER_R_INNER = 1.5
 const ARROW_STEP = 5.5
-const ARROW_DUR = '1.1s'
 const BELT_ACTIVE = '#3ec4b4'
 const BELT_INACTIVE = '#cbd5e1'
-// belt 두께: 모든 방향 동일 — 실제 gap과 무관하게 균일한 벨트 시각
 const BELT_THICKNESS = 4.5
-// 화살표 크기: belt 두께와 무관하게 고정
 const ARROW_H = 1.1
 const ARROW_S = 0.85
-const ARROW_ACTIVE = 'rgba(255,255,255,0.72)'
-const ARROW_INACTIVE = 'rgba(148,163,184,0.48)'
+const ARROW_COLOR = 'rgba(255,255,255,0.72)'
 const LINE_ACTIVE = '#3ec4b4'
 const LINE_INACTIVE = '#cbd5e1'
 const KITCHEN_GAP = 0.8
+const BELT_SPEED = 5 // viewbox units / second
 
 function rrPath(x: number, y: number, w: number, h: number, r: number): string {
   const cr = Math.min(r, w / 2, h / 2)
@@ -42,6 +39,24 @@ function rrPath(x: number, y: number, w: number, h: number, r: number): string {
   ].join(' ')
 }
 
+// belt 중앙선 closed path — animateMotion이 이 경로를 따라 화살표를 이동시킴
+// 코너 radius = BELT_THICKNESS/2 → 자연스러운 곡선 전환
+function beltCenterPath(rx: number, ry: number, rw: number, rh: number, th: number): string {
+  const r = th / 2
+  return [
+    `M ${rx + th},${ry + r}`,
+    `H ${rx + rw - th}`,
+    `A ${r},${r} 0 0 1 ${rx + rw - r},${ry + th}`,
+    `V ${ry + rh - th}`,
+    `A ${r},${r} 0 0 1 ${rx + rw - th},${ry + rh - r}`,
+    `H ${rx + th}`,
+    `A ${r},${r} 0 0 1 ${rx + r},${ry + rh - th}`,
+    `V ${ry + th}`,
+    `A ${r},${r} 0 0 1 ${rx + th},${ry + r}`,
+    'Z',
+  ].join(' ')
+}
+
 function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
   const rawUid = useId()
   const uid = `cr${rawUid.replace(/[^a-zA-Z0-9]/g, '')}`
@@ -51,7 +66,6 @@ function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
 
   const active = segments.some((s) => s.active)
 
-  // kitchen inner boundary (with visual gap from belt)
   const kx = kitchen.x - KITCHEN_GAP
   const ky = kitchen.y - KITCHEN_GAP
   const kw = kitchen.width + KITCHEN_GAP * 2
@@ -59,8 +73,7 @@ function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
   const kitchenRight = kitchen.x + kitchen.width
   const kitchenBottom = kitchen.y + kitchen.height
 
-  // 방향별 테이블 분류: x 기준 우선(서/동), 나머지만 y 기준(북/남)
-  // → 카운터 좌석처럼 kitchen 옆에 길게 늘어선 테이블이 잘못 남/북으로 분류되는 것 방지
+  // x 기준 우선 분류(서/동), 나머지만 y 기준(북/남)
   const westTables = tables.filter(
     (t) => t.x != null && t.width != null && t.x + t.width <= kitchen.x,
   )
@@ -73,95 +86,31 @@ function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
     (t) => !sideTables.has(t) && t.y != null && t.y >= kitchenBottom,
   )
 
-  // 방향별 belt 두께: 테이블 없는 방향은 0, 있는 방향은 고정 BELT_THICKNESS
   const beltLeft = westTables.length > 0 ? BELT_THICKNESS : 0
   const beltRight = eastTables.length > 0 ? BELT_THICKNESS : 0
   const beltTop = northTables.length > 0 ? BELT_THICKNESS : 0
   const beltBottom = southTables.length > 0 ? BELT_THICKNESS : 0
 
-  // belt가 하나도 없으면 렌더링 생략
   if (beltLeft === 0 && beltRight === 0 && beltTop === 0 && beltBottom === 0) return null
 
-  // rail outer bounds
   const rx = kx - beltLeft
   const ry = ky - beltTop
   const rw = kw + beltLeft + beltRight
   const rh = kh + beltTop + beltBottom
 
-  const topCY = ry + beltTop / 2
-  const bottomCY = ky + kh + beltBottom / 2
-  const leftCX = rx + beltLeft / 2
-  const rightCX = kx + kw + beltRight / 2
-
   const beltFill = active ? BELT_ACTIVE : BELT_INACTIVE
-  const arrowColor = active ? ARROW_ACTIVE : ARROW_INACTIVE
   const lineColor = active ? LINE_ACTIVE : LINE_INACTIVE
 
-  function arrowGroup(
-    dir: 'right' | 'down' | 'left' | 'up',
-    posMin: number,
-    posMax: number,
-    orthoCenter: number,
-    thick: number,
-    clipId: string,
-  ) {
-    if (thick <= 0) return null
-    const isH = dir === 'right' || dir === 'left'
-    const len = posMax - posMin
-    const count = Math.ceil(len / ARROW_STEP) + 3
+  // 경로 길이 계산 → 화살표 수 · 애니메이션 총 시간
+  const straightLen = 2 * (rw - 2 * BELT_THICKNESS + rh - 2 * BELT_THICKNESS)
+  const cornerLen = Math.PI * BELT_THICKNESS // 4 * (π/2 * r)
+  const pathLen = straightLen + cornerLen
+  const totalDur = pathLen / BELT_SPEED
+  const arrowCount = Math.ceil(pathLen / ARROW_STEP)
+  const centerPath = beltCenterPath(rx, ry, rw, rh, BELT_THICKNESS)
 
-    const animTo =
-      dir === 'right'
-        ? `${ARROW_STEP} 0`
-        : dir === 'down'
-          ? `0 ${ARROW_STEP}`
-          : dir === 'left'
-            ? `${-ARROW_STEP} 0`
-            : `0 ${-ARROW_STEP}`
-
-    const paths = Array.from({ length: count }, (_, i) => {
-      const pos = posMin - ARROW_STEP + i * ARROW_STEP
-      const cx = isH ? pos : orthoCenter
-      const cy = isH ? orthoCenter : pos
-      const d =
-        dir === 'right'
-          ? `M${cx - ARROW_H},${cy - ARROW_S} L${cx + ARROW_H},${cy} L${cx - ARROW_H},${cy + ARROW_S}`
-          : dir === 'down'
-            ? `M${cx - ARROW_S},${cy - ARROW_H} L${cx},${cy + ARROW_H} L${cx + ARROW_S},${cy - ARROW_H}`
-            : dir === 'left'
-              ? `M${cx + ARROW_H},${cy - ARROW_S} L${cx - ARROW_H},${cy} L${cx + ARROW_H},${cy + ARROW_S}`
-              : `M${cx - ARROW_S},${cy + ARROW_H} L${cx},${cy - ARROW_H} L${cx + ARROW_S},${cy + ARROW_H}`
-      return (
-        <path
-          key={i}
-          d={d}
-          stroke={arrowColor}
-          strokeWidth="0.7"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      )
-    })
-
-    return (
-      <g clipPath={`url(#${clipId})`}>
-        <g>
-          {paths}
-          {active && (
-            <animateTransform
-              attributeName="transform"
-              type="translate"
-              from="0 0"
-              to={animTo}
-              dur={ARROW_DUR}
-              repeatCount="indefinite"
-            />
-          )}
-        </g>
-      </g>
-    )
-  }
+  // 화살표 d: 원점 기준 오른쪽(→) 방향 — rotate="auto"가 경로에 맞게 회전
+  const arrowD = `M ${-ARROW_H},${-ARROW_S} L ${ARROW_H},0 L ${-ARROW_H},${ARROW_S}`
 
   return (
     <svg
@@ -170,17 +119,12 @@ function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
       preserveAspectRatio="none"
     >
       <defs>
-        <clipPath id={`${uid}t`}>
-          <rect x={rx} y={ry} width={rw} height={beltTop} />
-        </clipPath>
-        <clipPath id={`${uid}r`}>
-          <rect x={kx + kw} y={ry} width={beltRight} height={rh} />
-        </clipPath>
-        <clipPath id={`${uid}b`}>
-          <rect x={rx} y={ky + kh} width={rw} height={beltBottom} />
-        </clipPath>
-        <clipPath id={`${uid}l`}>
-          <rect x={rx} y={ry} width={beltLeft} height={rh} />
+        {/* belt 도넛 clipPath — kitchen 영역(남쪽 포함)을 지나는 화살표를 가림 */}
+        <clipPath id={`${uid}belt`}>
+          <path
+            d={`${rrPath(rx, ry, rw, rh, CORNER_R_OUTER)} ${rrPath(kx, ky, kw, kh, CORNER_R_INNER)}`}
+            clipRule="evenodd"
+          />
         </clipPath>
         {active && (
           <filter id={`${uid}g`} x="-25%" y="-25%" width="150%" height="150%">
@@ -215,7 +159,7 @@ function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
         )
       })}
 
-      {/* Belt background — donut shape via evenodd fill rule */}
+      {/* Belt donut background */}
       <path
         d={`${rrPath(rx, ry, rw, rh, CORNER_R_OUTER)} ${rrPath(kx, ky, kw, kh, CORNER_R_INNER)}`}
         fill={beltFill}
@@ -224,11 +168,30 @@ function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
         opacity={0.9}
       />
 
-      {/* Arrow patterns: top→right, right→down, bottom→left, left→up */}
-      {arrowGroup('right', rx, rx + rw, topCY, beltTop, `${uid}t`)}
-      {arrowGroup('down', ry, ry + rh, rightCX, beltRight, `${uid}r`)}
-      {arrowGroup('left', rx, rx + rw, bottomCY, beltBottom, `${uid}b`)}
-      {arrowGroup('up', ry, ry + rh, leftCX, beltLeft, `${uid}l`)}
+      {/* Arrows: animateMotion along center path — rotate="auto" handles corner turns */}
+      {active && (
+        <g clipPath={`url(#${uid}belt)`}>
+          {Array.from({ length: arrowCount }, (_, i) => (
+            <path
+              key={i}
+              d={arrowD}
+              stroke={ARROW_COLOR}
+              strokeWidth="0.7"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <animateMotion
+                path={centerPath}
+                dur={`${totalDur}s`}
+                begin={`${-(i / arrowCount) * totalDur}s`}
+                repeatCount="indefinite"
+                rotate="auto"
+              />
+            </path>
+          ))}
+        </g>
+      )}
     </svg>
   )
 }
