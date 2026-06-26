@@ -15,7 +15,7 @@ import {
   type OrderStatus,
 } from '../../auth/staffOrderApi'
 import { listTables, type RestaurantTable } from '../../auth/tableApi'
-import RailLines from '../../staff/RailLines'
+import ConveyorRail from '../../staff/ConveyorRail'
 import { formatSeatLabel } from '../../staff/seatLabel'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -517,7 +517,7 @@ function FloorBoardPage() {
         {status === 'ready' && stationId !== null && (
           <>
             <div className="absolute inset-[5%]">
-              {elements.map((element) => (
+              {elements.filter((e) => e.type !== 'RAIL').map((element) => (
                 <div
                   key={`element-${element.id}`}
                   className={`absolute flex items-center justify-center text-xs font-semibold ${ELEMENT_TYPE_CLASS[element.type]}`}
@@ -532,7 +532,7 @@ function FloorBoardPage() {
                 </div>
               ))}
 
-              <RailLines tables={tables} segments={railSegments} />
+              <ConveyorRail elements={elements} segments={railSegments} tables={tables} />
 
               {placedTables.map((table) => (
                 <button
