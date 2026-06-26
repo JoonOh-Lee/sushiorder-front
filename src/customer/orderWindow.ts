@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-const OPEN = { hour: 11, minute: 50 }
+const OPEN = { hour: 0, minute: 0 } // TODO: 테스트 완료 후 { hour: 11, minute: 50 } 으로 복원
 const WARNING = { hour: 21, minute: 10 }
 const CLOSE = { hour: 21, minute: 20 }
 
