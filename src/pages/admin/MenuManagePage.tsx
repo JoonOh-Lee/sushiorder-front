@@ -8,6 +8,7 @@ import {
   deactivateMenu,
   listAllMenus,
   restockMenu,
+  setMenuStock,
   updateMenu,
   type MenuCreateInput,
 } from '../../auth/adminMenuApi'
@@ -18,18 +19,18 @@ import type { MenuItem } from '../../customer/menuApi'
 type Status = 'loading' | 'ready' | 'error'
 
 const CATEGORY_LABEL: Record<string, string> = {
-  DESSERT_ETC: '디저트·기타',
-  DRINK_ALCOHOL: '음료·주류',
-  FRESH_SUSHI: '생선초밥',
-  FRIED: '튀김',
-  GRILLED_SUSHI: '구이초밥',
-  GUNKAN_SUSHI: '군함초밥',
-  MEAL: '식사',
-  MEAT_SUSHI: '육류초밥',
-  PREMIUM_SUSHI: '프리미엄',
-  SEASONED_SUSHI: '조미초밥',
-  TAKEOUT: '포장',
+  PREMIUM_SUSHI: '프리미엄초밥',
+  FRESH_SUSHI: '신선초밥',
   TUNA_SUSHI: '참치초밥',
+  MEAT_SUSHI: '고기초밥',
+  GRILLED_SUSHI: '구운초밥',
+  SEASONED_SUSHI: '양념초밥',
+  GUNKAN_SUSHI: '군함초밥',
+  FRIED: '튀김류',
+  DESSERT_ETC: '디저트/기타',
+  MEAL: '식사류',
+  DRINK_ALCOHOL: '음료/주류',
+  TAKEOUT: '포장',
 }
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -149,8 +150,8 @@ function MenuFormModal({ menu, stations, onCancel, onSave }: MenuFormModalProps)
           imageUrl: form.imageUrl.trim(),
         })
         if (Number(form.price) !== menu.price) {
-          const priceResult = await changeMenuPrice(menu.id, Number(form.price))
-          if (priceResult) result = priceResult
+          await changeMenuPrice(menu.id, Number(form.price))
+          result = { ...result, price: Number(form.price) }
         }
       } else {
         result = await createMenu({
@@ -243,11 +244,12 @@ function MenuFormModal({ menu, stations, onCancel, onSave }: MenuFormModalProps)
                   ))}
                 </select>
               </Field>
-              <Field label="담당 스테이션">
+              <Field label={menu ? '담당 스테이션 (변경 불가)' : '담당 스테이션'}>
                 <select
                   value={form.stationId}
                   onChange={(e) => set('stationId', e.target.value)}
-                  className={inputCls}
+                  disabled={!!menu}
+                  className={`${inputCls} ${menu ? 'cursor-not-allowed opacity-50' : ''}`}
                 >
                   {stations.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -258,8 +260,18 @@ function MenuFormModal({ menu, stations, onCancel, onSave }: MenuFormModalProps)
               </Field>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={`재고 수량${menu ? ` (현재 ${menu.stockCount ?? '무제한'})` : ''}`}>
+            {menu ? (
+              <div className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-700">
+                재고:{' '}
+                <span className="font-bold">
+                  {menu.stockCount != null ? `${menu.stockCount}개` : '무제한'}
+                </span>
+                <span className="ml-2 opacity-70">
+                  · 재고 변경은 목록의 '보충' 버튼을 이용하세요.
+                </span>
+              </div>
+            ) : (
+              <Field label="재고 수량">
                 <input
                   type="number"
                   value={form.stockCount}
@@ -269,15 +281,16 @@ function MenuFormModal({ menu, stations, onCancel, onSave }: MenuFormModalProps)
                   min={0}
                 />
               </Field>
-              <Field label="이미지 URL">
-                <input
-                  value={form.imageUrl}
-                  onChange={(e) => set('imageUrl', e.target.value)}
-                  className={inputCls}
-                  placeholder="https://..."
-                />
-              </Field>
-            </div>
+            )}
+
+            <Field label="이미지 URL">
+              <input
+                value={form.imageUrl}
+                onChange={(e) => set('imageUrl', e.target.value)}
+                className={inputCls}
+                placeholder="https://..."
+              />
+            </Field>
           </div>
         </div>
 
@@ -308,21 +321,40 @@ function MenuFormModal({ menu, stations, onCancel, onSave }: MenuFormModalProps)
 interface RestockModalProps {
   menu: MenuItem
   onCancel: () => void
-  onDone: (updated: MenuItem | null, addedQty: number) => void
+  onRestock: (addedQty: number) => void
+  onSetStock: (qty: number) => void
+  onSetUnlimited: () => void
 }
 
-function RestockModal({ menu, onCancel, onDone }: RestockModalProps) {
-  const [qty, setQty] = useState('10')
+function RestockModal({ menu, onCancel, onRestock, onSetStock, onSetUnlimited }: RestockModalProps) {
+  const isUnlimited = menu.stockCount === null
+  const [qty, setQty] = useState(isUnlimited ? '30' : '10')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  async function handleRestock() {
+  async function handlePrimary() {
     const n = Number(qty)
     if (!n || n <= 0) { setError('1 이상의 수량을 입력하세요.'); return }
     setSaving(true)
     try {
-      const updated = await restockMenu(menu.id, n)
-      onDone(updated, n)
+      if (isUnlimited) {
+        await setMenuStock(menu.id, n)
+        onSetStock(n)
+      } else {
+        await restockMenu(menu.id, n)
+        onRestock(n)
+      }
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : '실패했습니다.')
+      setSaving(false)
+    }
+  }
+
+  async function handleSetUnlimited() {
+    setSaving(true)
+    try {
+      await setMenuStock(menu.id, null)
+      onSetUnlimited()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '실패했습니다.')
       setSaving(false)
@@ -345,7 +377,9 @@ function RestockModal({ menu, onCancel, onDone }: RestockModalProps) {
         )}
 
         <div className="mt-4">
-          <label className="mb-1.5 block text-xs font-semibold text-muted">추가할 수량</label>
+          <label className="mb-1.5 block text-xs font-semibold text-muted">
+            {isUnlimited ? '설정할 재고 수량' : '추가할 수량'}
+          </label>
           <input
             type="number"
             value={qty}
@@ -366,13 +400,24 @@ function RestockModal({ menu, onCancel, onDone }: RestockModalProps) {
           </button>
           <button
             type="button"
-            onClick={handleRestock}
+            onClick={handlePrimary}
             disabled={saving}
             className="flex-1 rounded-full bg-primary-500 py-3 text-sm font-semibold text-white active:scale-95 disabled:opacity-50"
           >
-            {saving ? '처리 중…' : '보충하기'}
+            {saving ? '처리 중…' : isUnlimited ? '재고 설정' : '보충하기'}
           </button>
         </div>
+
+        {!isUnlimited && (
+          <button
+            type="button"
+            onClick={handleSetUnlimited}
+            disabled={saving}
+            className="mt-2 w-full rounded-full border border-ink/15 py-2.5 text-sm font-semibold text-muted transition-colors hover:bg-ink/5 active:scale-95 disabled:opacity-40"
+          >
+            무제한으로 변경
+          </button>
+        )}
       </div>
     </div>
   )
@@ -441,11 +486,27 @@ function MenuManagePage() {
     setTimeout(() => setToastMsg(''), 2500)
   }
 
-  const categories = ['ALL', ...Array.from(new Set(menus.map((m) => m.category))).sort()]
+  const CATEGORY_ORDER = Object.keys(CATEGORY_LABEL)
+  const categories = [
+    'ALL',
+    ...Array.from(new Set(menus.map((m) => m.category))).sort((a, b) => {
+      const ai = CATEGORY_ORDER.indexOf(a)
+      const bi = CATEGORY_ORDER.indexOf(b)
+      if (ai === -1 && bi === -1) return a.localeCompare(b)
+      if (ai === -1) return 1
+      if (bi === -1) return -1
+      return ai - bi
+    }),
+  ]
 
-  const filtered = menus
-    .filter((m) => activeCategory === 'ALL' || m.category === activeCategory)
-    .filter((m) => !search.trim() || m.name.includes(search.trim()))
+  // 검색어만 적용한 중간 결과 — 카테고리 탭 카운트에 사용
+  const searchFiltered = search.trim()
+    ? menus.filter((m) => m.name.includes(search.trim()))
+    : menus
+
+  const filtered = searchFiltered.filter(
+    (m) => activeCategory === 'ALL' || m.category === activeCategory,
+  )
 
   function stationName(id: number) {
     return stations.find((s) => s.id === id)?.name ?? `#${id}`
@@ -465,8 +526,7 @@ function MenuManagePage() {
     // 낙관적 업데이트: 즉시 UI 반영
     patchMenu(menu.id, { active: !menu.active })
     try {
-      const updated = menu.active ? await deactivateMenu(menu.id) : await activateMenu(menu.id)
-      replaceMenu(updated)
+      await (menu.active ? deactivateMenu(menu.id) : activateMenu(menu.id))
       showToast(menu.active ? `"${menu.name}" 비활성화` : `"${menu.name}" 활성화`)
     } catch (e) {
       // 실패 시 원래 상태로 롤백
@@ -538,7 +598,7 @@ function MenuManagePage() {
           style={{ scrollbarWidth: 'none' }}
         >
           {categories.map((cat) => {
-            const count = cat === 'ALL' ? menus.length : menus.filter((m) => m.category === cat).length
+            const count = cat === 'ALL' ? searchFiltered.length : searchFiltered.filter((m) => m.category === cat).length
             return (
               <button
                 key={cat}
@@ -650,15 +710,13 @@ function MenuManagePage() {
 
                     {/* 액션 */}
                     <div className="flex shrink-0 items-center gap-2">
-                      {menu.stockCount != null && (
-                        <button
-                          type="button"
-                          onClick={() => setRestockTarget(menu)}
-                          className="rounded-full border border-primary-200 px-2.5 py-1 text-xs font-semibold text-primary-600 transition-colors hover:bg-primary-50 active:scale-95"
-                        >
-                          보충
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setRestockTarget(menu)}
+                        className="rounded-full border border-primary-200 px-2.5 py-1 text-xs font-semibold text-primary-600 transition-colors hover:bg-primary-50 active:scale-95"
+                      >
+                        재고
+                      </button>
                       <button
                         type="button"
                         onClick={() => setEditingMenu(menu)}
@@ -722,20 +780,22 @@ function MenuManagePage() {
         <RestockModal
           menu={restockTarget}
           onCancel={() => setRestockTarget(null)}
-          onDone={(updated, addedQty) => {
-            if (updated && typeof updated === 'object' && 'id' in updated) {
-              replaceMenu(updated)
-            } else {
-              // API가 data를 반환하지 않은 경우 — 보충량을 로컬에서 직접 더함
-              patchMenu(restockTarget.id, {
-                stockCount:
-                  restockTarget.stockCount != null
-                    ? restockTarget.stockCount + addedQty
-                    : null,
-              })
-            }
+          onRestock={(addedQty) => {
+            patchMenu(restockTarget.id, {
+              stockCount: restockTarget.stockCount != null ? restockTarget.stockCount + addedQty : null,
+            })
             setRestockTarget(null)
             showToast(`재고 +${addedQty}개 보충되었습니다.`)
+          }}
+          onSetStock={(qty) => {
+            patchMenu(restockTarget.id, { stockCount: qty, limitedStock: true, soldOut: false })
+            setRestockTarget(null)
+            showToast(`"${restockTarget.name}" 재고 ${qty}개로 설정되었습니다.`)
+          }}
+          onSetUnlimited={() => {
+            patchMenu(restockTarget.id, { stockCount: null, limitedStock: false, soldOut: false })
+            setRestockTarget(null)
+            showToast(`"${restockTarget.name}" 무제한으로 변경되었습니다.`)
           }}
         />
       )}
