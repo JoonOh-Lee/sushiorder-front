@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/types'
 import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../auth/floorPlanElementApi'
 import { listRailSegments, type RailSegment } from '../../auth/railSegmentApi'
-import { listStations, type Station } from '../../auth/stationApi'
-import { clearStaffAuth, getStaffAuth, type StaffAuth } from '../../auth/staffAuth'
+import { listStations, setMyDuty, type Station } from '../../auth/stationApi'
+import { clearStaffAuth, getStaffAuth, updateStaffAuthOnDuty, type StaffAuth } from '../../auth/staffAuth'
 import { listStaffCalls, resolveStaffCall, type CallType, type StaffCall } from '../../auth/staffCallApi'
 import {
   cancelStationItems,
@@ -231,6 +231,7 @@ function FloorBoardPage() {
   const navigate = useNavigate()
   const [auth] = useState<StaffAuth | null>(() => getStaffAuth())
   const [stations, setStations] = useState<Station[]>([])
+  const [onDuty, setOnDuty] = useState<boolean>(() => getStaffAuth()?.onDuty ?? false)
   const [status, setStatus] = useState<Status>('loading')
   const [errorMessage, setErrorMessage] = useState('')
   const [actionError, setActionError] = useState('')
@@ -263,35 +264,19 @@ function FloorBoardPage() {
 
   useEffect(() => {
     if (!auth || auth.stationId === null) return
-    let cancelled = false
-    listStations()
-      .then((result) => {
-        if (cancelled) return
-        setStations(result)
-      })
-      .catch(() => {
-        if (cancelled) return
-        setStations([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [auth])
-
-  useEffect(() => {
-    if (!auth || auth.stationId === null) return
 
     let cancelled = false
 
     function load() {
-      Promise.all([listTables(), listFloorPlanElements(), listRailSegments(), listAllActiveOrders(), listStaffCalls()])
-        .then(([tableResult, elementResult, railResult, orderResult, callResult]) => {
+      Promise.all([listTables(), listFloorPlanElements(), listRailSegments(), listAllActiveOrders(), listStaffCalls(), listStations()])
+        .then(([tableResult, elementResult, railResult, orderResult, callResult, stationResult]) => {
           if (cancelled) return
           setTables(tableResult)
           setElements(elementResult)
           setRailSegments(railResult)
           setOrders([...orderResult].sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
           setCalls([...callResult].sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
+          setStations(stationResult)
           setStatus('ready')
         })
         .catch((err: unknown) => {
@@ -318,6 +303,20 @@ function FloorBoardPage() {
   function handleLogout() {
     clearStaffAuth()
     navigate('/staff/login')
+  }
+
+  function handleToggleDuty() {
+    const next = !onDuty
+    setMyDuty(next)
+      .then(() => {
+        setOnDuty(next)
+        updateStaffAuthOnDuty(next)
+        setShowMenu(false)
+      })
+      .catch((err: unknown) => {
+        setActionError(err instanceof ApiError ? err.message : '근무 상태 변경에 실패했습니다.')
+        setShowMenu(false)
+      })
   }
 
   function addCoverage(id: number) {
@@ -398,7 +397,11 @@ function FloorBoardPage() {
     new Set(
       orders
         .flatMap((order) => order.items.map((item) => item.stationId))
-        .filter((id) => !responsibleStationIds.includes(id)),
+        .filter((id) => {
+          if (responsibleStationIds.includes(id)) return false
+          const station = stations.find((s) => s.id === id)
+          return !station?.hasOnDutyStaff
+        }),
     ),
   )
 
@@ -417,9 +420,14 @@ function FloorBoardPage() {
   return (
     <div className="flex h-screen flex-col bg-surface">
       <header className="flex items-center justify-between bg-primary-500 px-4 py-2.5 text-white">
-        <p className="text-sm font-semibold">
-          {auth.username} · {ROLE_LABEL[auth.role]} · {stationNameFor(auth.stationId)}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold">
+            {auth.username} · {ROLE_LABEL[auth.role]} · {stationNameFor(auth.stationId)}
+          </p>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${onDuty ? 'bg-green-400 text-white' : 'bg-white/25 text-white'}`}>
+            {onDuty ? '근무 중' : 'OFF'}
+          </span>
+        </div>
         <div className="relative">
           <button
             type="button"
@@ -433,6 +441,13 @@ function FloorBoardPage() {
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
               <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
+                <button
+                  type="button"
+                  onClick={handleToggleDuty}
+                  className={`block w-full px-4 py-3 text-left text-sm font-semibold ${onDuty ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
+                >
+                  {onDuty ? '근무 종료' : '근무 시작'}
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -541,7 +556,10 @@ function FloorBoardPage() {
 
             <button
               type="button"
-              onClick={() => setShowListModal(true)}
+              onClick={() => {
+                listStations().then(setStations).catch(() => {})
+                setShowListModal(true)
+              }}
               className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-primary-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg transition-transform active:scale-95"
             >
               목록
