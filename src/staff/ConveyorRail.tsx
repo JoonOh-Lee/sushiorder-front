@@ -1,0 +1,203 @@
+import { useId } from 'react'
+import type { FloorPlanElement } from '../auth/floorPlanElementApi'
+import type { RailSegment } from '../auth/railSegmentApi'
+import type { RestaurantTable } from '../auth/tableApi'
+
+interface ConveyorRailProps {
+  elements: FloorPlanElement[]
+  segments: RailSegment[]
+  tables: RestaurantTable[]
+}
+
+const CORNER_R_OUTER = 3
+const CORNER_R_INNER = 1.5
+const ARROW_STEP = 5.5
+const ARROW_DUR = '1.1s'
+const BELT_ACTIVE = '#3ec4b4'
+const BELT_INACTIVE = '#cbd5e1'
+const ARROW_ACTIVE = 'rgba(255,255,255,0.72)'
+const ARROW_INACTIVE = 'rgba(148,163,184,0.48)'
+const LINE_ACTIVE = '#3ec4b4'
+const LINE_INACTIVE = '#cbd5e1'
+const KITCHEN_GAP = 0.8
+
+function rrPath(x: number, y: number, w: number, h: number, r: number): string {
+  const cr = Math.min(r, w / 2, h / 2)
+  return [
+    `M ${x + cr},${y}`,
+    `H ${x + w - cr}`,
+    `A ${cr},${cr} 0 0 1 ${x + w},${y + cr}`,
+    `V ${y + h - cr}`,
+    `A ${cr},${cr} 0 0 1 ${x + w - cr},${y + h}`,
+    `H ${x + cr}`,
+    `A ${cr},${cr} 0 0 1 ${x},${y + h - cr}`,
+    `V ${y + cr}`,
+    `A ${cr},${cr} 0 0 1 ${x + cr},${y}`,
+    'Z',
+  ].join(' ')
+}
+
+function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
+  const rawUid = useId()
+  const uid = `cr${rawUid.replace(/[^a-zA-Z0-9]/g, '')}`
+
+  const rail = elements.find((e) => e.type === 'RAIL')
+  const kitchen = elements.find((e) => e.type === 'KITCHEN')
+
+  if (!rail) return null
+
+  const active = segments.some((s) => s.active)
+
+  const { x: rx, y: ry, width: rw, height: rh } = rail
+
+  const kx = (kitchen?.x ?? rx + rw * 0.14) - KITCHEN_GAP
+  const ky = (kitchen?.y ?? ry + rh * 0.14) - KITCHEN_GAP
+  const kw = (kitchen?.width ?? rw * 0.72) + KITCHEN_GAP * 2
+  const kh = (kitchen?.height ?? rh * 0.72) + KITCHEN_GAP * 2
+
+  const beltTop = ky - ry
+  const beltBottom = ry + rh - (ky + kh)
+  const beltLeft = kx - rx
+  const beltRight = rx + rw - (kx + kw)
+
+  const topCY = ry + beltTop / 2
+  const bottomCY = ky + kh + beltBottom / 2
+  const leftCX = rx + beltLeft / 2
+  const rightCX = kx + kw + beltRight / 2
+
+  const beltFill = active ? BELT_ACTIVE : BELT_INACTIVE
+  const arrowColor = active ? ARROW_ACTIVE : ARROW_INACTIVE
+  const lineColor = active ? LINE_ACTIVE : LINE_INACTIVE
+
+  function arrowGroup(
+    dir: 'right' | 'down' | 'left' | 'up',
+    posMin: number,
+    posMax: number,
+    orthoCenter: number,
+    thick: number,
+    clipId: string,
+  ) {
+    const isH = dir === 'right' || dir === 'left'
+    const len = posMax - posMin
+    const count = Math.ceil(len / ARROW_STEP) + 3
+    const aH = thick * 0.31
+    const aS = thick * 0.25
+
+    const animTo =
+      dir === 'right' ? `${ARROW_STEP} 0` :
+      dir === 'down'  ? `0 ${ARROW_STEP}` :
+      dir === 'left'  ? `${-ARROW_STEP} 0` :
+                        `0 ${-ARROW_STEP}`
+
+    const paths = Array.from({ length: count }, (_, i) => {
+      const pos = posMin - ARROW_STEP + i * ARROW_STEP
+      const cx = isH ? pos : orthoCenter
+      const cy = isH ? orthoCenter : pos
+      const d =
+        dir === 'right' ? `M${cx - aH},${cy - aS} L${cx + aH},${cy} L${cx - aH},${cy + aS}` :
+        dir === 'down'  ? `M${cx - aS},${cy - aH} L${cx},${cy + aH} L${cx + aS},${cy - aH}` :
+        dir === 'left'  ? `M${cx + aH},${cy - aS} L${cx - aH},${cy} L${cx + aH},${cy + aS}` :
+                          `M${cx - aS},${cy + aH} L${cx},${cy - aH} L${cx + aS},${cy + aH}`
+      return (
+        <path
+          key={i}
+          d={d}
+          stroke={arrowColor}
+          strokeWidth="0.7"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )
+    })
+
+    return (
+      <g clipPath={`url(#${clipId})`}>
+        <g>
+          {paths}
+          {active && (
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              from="0 0"
+              to={animTo}
+              dur={ARROW_DUR}
+              repeatCount="indefinite"
+            />
+          )}
+        </g>
+      </g>
+    )
+  }
+
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+    >
+      <defs>
+        <clipPath id={`${uid}t`}>
+          <rect x={rx} y={ry} width={rw} height={beltTop} />
+        </clipPath>
+        <clipPath id={`${uid}r`}>
+          <rect x={kx + kw} y={ry} width={beltRight} height={rh} />
+        </clipPath>
+        <clipPath id={`${uid}b`}>
+          <rect x={rx} y={ky + kh} width={rw} height={beltBottom} />
+        </clipPath>
+        <clipPath id={`${uid}l`}>
+          <rect x={rx} y={ry} width={beltLeft} height={rh} />
+        </clipPath>
+        {active && (
+          <filter id={`${uid}g`} x="-25%" y="-25%" width="150%" height="150%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        )}
+      </defs>
+
+      {/* Connector lines: table center → nearest point on rail outer edge */}
+      {tables.map((t) => {
+        if (t.x === null || t.y === null || t.width === null || t.height === null) return null
+        const tcx = t.x + t.width / 2
+        const tcy = t.y + t.height / 2
+        const nearX = Math.max(rx, Math.min(rx + rw, tcx))
+        const nearY = Math.max(ry, Math.min(ry + rh, tcy))
+        return (
+          <line
+            key={`c${t.id}`}
+            x1={tcx}
+            y1={tcy}
+            x2={nearX}
+            y2={nearY}
+            stroke={lineColor}
+            strokeWidth="0.45"
+            opacity={0.55}
+            vectorEffect="non-scaling-stroke"
+          />
+        )
+      })}
+
+      {/* Belt background — donut shape via evenodd fill rule */}
+      <path
+        d={`${rrPath(rx, ry, rw, rh, CORNER_R_OUTER)} ${rrPath(kx, ky, kw, kh, CORNER_R_INNER)}`}
+        fill={beltFill}
+        fillRule="evenodd"
+        filter={active ? `url(#${uid}g)` : undefined}
+        opacity={0.9}
+      />
+
+      {/* Arrow patterns: top→right, right→down, bottom→left, left→up */}
+      {arrowGroup('right', rx,      rx + rw, topCY,    beltTop,    `${uid}t`)}
+      {arrowGroup('down',  ry,      ry + rh, rightCX,  beltRight,  `${uid}r`)}
+      {arrowGroup('left',  rx,      rx + rw, bottomCY, beltBottom, `${uid}b`)}
+      {arrowGroup('up',    ry,      ry + rh, leftCX,   beltLeft,   `${uid}l`)}
+    </svg>
+  )
+}
+
+export default ConveyorRail
