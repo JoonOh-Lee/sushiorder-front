@@ -187,15 +187,23 @@ function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
               const reaction = reactions[menu.id]
               const quantity = cartQuantities[menu.id] ?? 0
               return (
-                <li key={menu.id} className="rounded-card bg-surface-raised p-4 shadow-sm">
+                <li
+                  key={menu.id}
+                  className={`rounded-card bg-surface-raised p-4 shadow-sm ${menu.soldOut ? 'opacity-60' : ''}`}
+                >
                   <div className="flex w-full gap-4">
                     <button
                       type="button"
                       aria-label={`${menu.name} 사진 확대`}
                       onClick={() => menu.imageUrl && setZoomImage(menu.imageUrl)}
-                      className="shrink-0"
+                      className="relative shrink-0"
                     >
                       <MenuThumbnail menu={menu} className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-primary-50" />
+                      {menu.soldOut && (
+                        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40">
+                          <span className="text-xs font-bold text-white">품절</span>
+                        </div>
+                      )}
                     </button>
                     <button
                       type="button"
@@ -204,7 +212,11 @@ function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-lg font-bold text-ink">{menu.name}</h3>
-                        {menu.limitedStock && (
+                        {menu.soldOut ? (
+                          <span className="shrink-0 whitespace-nowrap rounded-full bg-ink/30 px-2.5 py-1 text-xs font-semibold text-white">
+                            품절
+                          </span>
+                        ) : menu.limitedStock && menu.stockCount != null && menu.stockCount <= 10 && (
                           <span className="shrink-0 whitespace-nowrap rounded-full bg-accent-400 px-2.5 py-1 text-xs font-semibold text-white">
                             마감임박
                           </span>
@@ -247,12 +259,17 @@ function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
 
                     <button
                       type="button"
-                      aria-label={`${menu.name} 담기`}
-                      onClick={() => openDetailSheet(menu)}
-                      className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white transition-transform active:scale-90"
+                      aria-label={menu.soldOut ? '품절된 메뉴' : `${menu.name} 담기`}
+                      onClick={() => !menu.soldOut && openDetailSheet(menu)}
+                      disabled={menu.soldOut}
+                      className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition-transform ${
+                        menu.soldOut
+                          ? 'cursor-not-allowed bg-ink/20'
+                          : 'bg-primary-500 active:scale-90'
+                      }`}
                     >
                       <CartIcon className="h-5 w-5" />
-                      {quantity > 0 && (
+                      {!menu.soldOut && quantity > 0 && (
                         <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent-500 text-[11px] font-bold text-white">
                           {quantity}
                         </span>

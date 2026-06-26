@@ -15,6 +15,7 @@ export interface MenuItem {
   allergyInfo: string
   stockCount: number | null
   limitedStock: boolean
+  soldOut: boolean
   likeCount: number
   dislikeCount: number
   active: boolean

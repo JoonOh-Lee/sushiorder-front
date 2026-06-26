@@ -47,7 +47,11 @@ function MenuDetailSheet({
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <h3 className="text-xl font-bold text-ink">{menu.name}</h3>
-              {menu.limitedStock && (
+              {menu.soldOut ? (
+                <span className="shrink-0 whitespace-nowrap rounded-full bg-ink/30 px-2.5 py-1 text-xs font-semibold text-white">
+                  품절
+                </span>
+              ) : menu.limitedStock && menu.stockCount != null && menu.stockCount <= 10 && (
                 <span className="shrink-0 whitespace-nowrap rounded-full bg-accent-400 px-2.5 py-1 text-xs font-semibold text-white">
                   마감임박
                 </span>
@@ -71,33 +75,41 @@ function MenuDetailSheet({
               )}
             </dl>
 
-            <div className="mt-5 flex items-center justify-center gap-6">
-              <button
-                type="button"
-                aria-label="수량 줄이기"
-                onClick={onDecrement}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-xl font-bold text-primary-600 transition-transform active:scale-90"
-              >
-                −
-              </button>
-              <span className="w-10 text-center text-2xl font-bold text-ink">{quantity}</span>
-              <button
-                type="button"
-                aria-label="수량 늘리기"
-                onClick={onIncrement}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-500 text-xl font-bold text-white transition-transform active:scale-90"
-              >
-                +
-              </button>
-            </div>
+            {menu.soldOut ? (
+              <div className="mt-5 rounded-full bg-ink/10 py-4 text-center text-base font-semibold text-muted">
+                현재 품절된 메뉴입니다
+              </div>
+            ) : (
+              <>
+                <div className="mt-5 flex items-center justify-center gap-6">
+                  <button
+                    type="button"
+                    aria-label="수량 줄이기"
+                    onClick={onDecrement}
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-xl font-bold text-primary-600 transition-transform active:scale-90"
+                  >
+                    −
+                  </button>
+                  <span className="w-10 text-center text-2xl font-bold text-ink">{quantity}</span>
+                  <button
+                    type="button"
+                    aria-label="수량 늘리기"
+                    onClick={onIncrement}
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-500 text-xl font-bold text-white transition-transform active:scale-90"
+                  >
+                    +
+                  </button>
+                </div>
 
-            <button
-              type="button"
-              onClick={onConfirm}
-              className="mt-5 w-full rounded-full bg-primary-500 py-4 text-base font-semibold text-white transition-transform active:scale-[0.98]"
-            >
-              담기 · {(menu.price * quantity).toLocaleString()}원
-            </button>
+                <button
+                  type="button"
+                  onClick={onConfirm}
+                  className="mt-5 w-full rounded-full bg-primary-500 py-4 text-base font-semibold text-white transition-transform active:scale-[0.98]"
+                >
+                  담기 · {(menu.price * quantity).toLocaleString()}원
+                </button>
+              </>
+            )}
           </>
         )}
       </div>

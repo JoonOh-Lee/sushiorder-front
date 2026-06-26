@@ -560,22 +560,6 @@ function FloorBoardPage() {
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                listStations().then(setStations).catch(() => {})
-                setShowListModal(true)
-              }}
-              className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-primary-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg transition-transform active:scale-95"
-            >
-              주문목록
-              {pendingBadgeCount > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-xs font-bold text-primary-600">
-                  {pendingBadgeCount}
-                </span>
-              )}
-            </button>
-
             {selectedTable && (
               <div
                 className="absolute inset-0 z-10 bg-ink/30"
@@ -635,6 +619,26 @@ function FloorBoardPage() {
           </>
         )}
       </div>
+
+      {status === 'ready' && stationId !== null && (
+        <div className="border-t border-primary-100 bg-surface-raised px-4 py-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              listStations().then(setStations).catch(() => {})
+              setShowListModal(true)
+            }}
+            className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-accent-500 py-3.5 text-sm font-bold text-white shadow-md transition-transform active:scale-[0.98]"
+          >
+            주문목록 보기
+            {pendingBadgeCount > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1.5 text-xs font-bold text-accent-600">
+                {pendingBadgeCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {showListModal && stationId !== null && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 px-4">
