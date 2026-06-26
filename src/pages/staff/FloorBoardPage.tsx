@@ -459,16 +459,22 @@ function FloorBoardPage() {
                   스테이션 변경
                 </button>
                 {auth.role === 'ADMIN' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowMenu(false)
-                      navigate('/admin/table-layout')
-                    }}
-                    className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                  >
-                    매장 배치 설정
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => { setShowMenu(false); navigate('/admin/menu') }}
+                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
+                    >
+                      메뉴 관리
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowMenu(false); navigate('/admin/table-layout') }}
+                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
+                    >
+                      매장 배치 설정
+                    </button>
+                  </>
                 )}
                 <button
                   type="button"
@@ -562,7 +568,7 @@ function FloorBoardPage() {
               }}
               className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-primary-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg transition-transform active:scale-95"
             >
-              목록
+              주문목록
               {pendingBadgeCount > 0 && (
                 <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-xs font-bold text-primary-600">
                   {pendingBadgeCount}
@@ -635,7 +641,7 @@ function FloorBoardPage() {
           <div className="absolute inset-0" onClick={() => setShowListModal(false)} />
           <div className="relative flex h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-card bg-surface shadow-2xl">
             <div className="flex items-center justify-between border-b border-primary-100 px-4 py-3">
-              <h2 className="text-lg font-bold text-ink">목록</h2>
+              <h2 className="text-lg font-bold text-ink">주문목록</h2>
               <button type="button" onClick={() => setShowListModal(false)} className="text-sm text-muted">
                 닫기
               </button>
