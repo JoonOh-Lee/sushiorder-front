@@ -99,7 +99,7 @@ function FixtureCreateModal({
         <h2 className="text-lg font-bold text-ink">기물 추가</h2>
 
         <div className="mt-3 flex gap-2">
-          {(['KITCHEN', 'RAIL', 'ETC'] as const).map((t) => (
+          {(['KITCHEN', 'ETC'] as const).map((t) => (
             <button
               key={t}
               type="button"
@@ -346,7 +346,9 @@ function TableLayoutPage() {
   const unplacedTables = tables.filter(
     (table) => table.x === null && !(drag?.kind === 'table' && drag.id === table.id),
   )
-  const visibleElements = elements.filter((el) => !(drag?.kind === 'element' && drag.id === el.id))
+  const visibleElements = elements.filter(
+    (el) => el.type !== 'RAIL' && !(drag?.kind === 'element' && drag.id === el.id),
+  )
 
   const ghostStyle = drag
     ? {
