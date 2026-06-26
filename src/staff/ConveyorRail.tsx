@@ -15,6 +15,9 @@ const ARROW_STEP = 5.5
 const ARROW_DUR = '1.1s'
 const BELT_ACTIVE = '#3ec4b4'
 const BELT_INACTIVE = '#cbd5e1'
+// 화살표 크기: belt 두께와 무관하게 고정
+const ARROW_H = 1.1
+const ARROW_S = 0.85
 const ARROW_ACTIVE = 'rgba(255,255,255,0.72)'
 const ARROW_INACTIVE = 'rgba(148,163,184,0.48)'
 const LINE_ACTIVE = '#3ec4b4'
@@ -41,24 +44,59 @@ function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
   const rawUid = useId()
   const uid = `cr${rawUid.replace(/[^a-zA-Z0-9]/g, '')}`
 
-  const rail = elements.find((e) => e.type === 'RAIL')
   const kitchen = elements.find((e) => e.type === 'KITCHEN')
-
-  if (!rail) return null
+  if (!kitchen) return null
 
   const active = segments.some((s) => s.active)
 
-  const { x: rx, y: ry, width: rw, height: rh } = rail
+  // kitchen inner boundary (with visual gap from belt)
+  const kx = kitchen.x - KITCHEN_GAP
+  const ky = kitchen.y - KITCHEN_GAP
+  const kw = kitchen.width + KITCHEN_GAP * 2
+  const kh = kitchen.height + KITCHEN_GAP * 2
+  const kitchenRight = kitchen.x + kitchen.width
+  const kitchenBottom = kitchen.y + kitchen.height
 
-  const kx = (kitchen?.x ?? rx + rw * 0.14) - KITCHEN_GAP
-  const ky = (kitchen?.y ?? ry + rh * 0.14) - KITCHEN_GAP
-  const kw = (kitchen?.width ?? rw * 0.72) + KITCHEN_GAP * 2
-  const kh = (kitchen?.height ?? rh * 0.72) + KITCHEN_GAP * 2
+  // 방향별 테이블 분류: x 기준 우선(서/동), 나머지만 y 기준(북/남)
+  // → 카운터 좌석처럼 kitchen 옆에 길게 늘어선 테이블이 잘못 남/북으로 분류되는 것 방지
+  const westTables = tables.filter(
+    (t) => t.x != null && t.width != null && t.x + t.width <= kitchen.x,
+  )
+  const eastTables = tables.filter((t) => t.x != null && t.x >= kitchenRight)
+  const sideTables = new Set([...westTables, ...eastTables])
+  const northTables = tables.filter(
+    (t) => !sideTables.has(t) && t.y != null && t.height != null && t.y + t.height <= kitchen.y,
+  )
+  const southTables = tables.filter(
+    (t) => !sideTables.has(t) && t.y != null && t.y >= kitchenBottom,
+  )
 
-  const beltTop = ky - ry
-  const beltBottom = ry + rh - (ky + kh)
-  const beltLeft = kx - rx
-  const beltRight = rx + rw - (kx + kw)
+  // 방향별 belt 두께: 테이블 없는 방향은 0 → 벨트 없음
+  const beltLeft =
+    westTables.length > 0
+      ? kx - Math.max(...westTables.map((t) => t.x! + (t.width ?? 0)))
+      : 0
+  const beltRight =
+    eastTables.length > 0
+      ? Math.min(...eastTables.map((t) => t.x!)) - (kx + kw)
+      : 0
+  const beltTop =
+    northTables.length > 0
+      ? ky - Math.max(...northTables.map((t) => t.y! + (t.height ?? 0)))
+      : 0
+  const beltBottom =
+    southTables.length > 0
+      ? Math.min(...southTables.map((t) => t.y!)) - (ky + kh)
+      : 0
+
+  // belt가 하나도 없으면 렌더링 생략
+  if (beltLeft === 0 && beltRight === 0 && beltTop === 0 && beltBottom === 0) return null
+
+  // rail outer bounds
+  const rx = kx - beltLeft
+  const ry = ky - beltTop
+  const rw = kw + beltLeft + beltRight
+  const rh = kh + beltTop + beltBottom
 
   const topCY = ry + beltTop / 2
   const bottomCY = ky + kh + beltBottom / 2
@@ -77,27 +115,32 @@ function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
     thick: number,
     clipId: string,
   ) {
+    if (thick <= 0) return null
     const isH = dir === 'right' || dir === 'left'
     const len = posMax - posMin
     const count = Math.ceil(len / ARROW_STEP) + 3
-    const aH = thick * 0.31
-    const aS = thick * 0.25
 
     const animTo =
-      dir === 'right' ? `${ARROW_STEP} 0` :
-      dir === 'down'  ? `0 ${ARROW_STEP}` :
-      dir === 'left'  ? `${-ARROW_STEP} 0` :
-                        `0 ${-ARROW_STEP}`
+      dir === 'right'
+        ? `${ARROW_STEP} 0`
+        : dir === 'down'
+          ? `0 ${ARROW_STEP}`
+          : dir === 'left'
+            ? `${-ARROW_STEP} 0`
+            : `0 ${-ARROW_STEP}`
 
     const paths = Array.from({ length: count }, (_, i) => {
       const pos = posMin - ARROW_STEP + i * ARROW_STEP
       const cx = isH ? pos : orthoCenter
       const cy = isH ? orthoCenter : pos
       const d =
-        dir === 'right' ? `M${cx - aH},${cy - aS} L${cx + aH},${cy} L${cx - aH},${cy + aS}` :
-        dir === 'down'  ? `M${cx - aS},${cy - aH} L${cx},${cy + aH} L${cx + aS},${cy - aH}` :
-        dir === 'left'  ? `M${cx + aH},${cy - aS} L${cx - aH},${cy} L${cx + aH},${cy + aS}` :
-                          `M${cx - aS},${cy + aH} L${cx},${cy - aH} L${cx + aS},${cy + aH}`
+        dir === 'right'
+          ? `M${cx - ARROW_H},${cy - ARROW_S} L${cx + ARROW_H},${cy} L${cx - ARROW_H},${cy + ARROW_S}`
+          : dir === 'down'
+            ? `M${cx - ARROW_S},${cy - ARROW_H} L${cx},${cy + ARROW_H} L${cx + ARROW_S},${cy - ARROW_H}`
+            : dir === 'left'
+              ? `M${cx + ARROW_H},${cy - ARROW_S} L${cx - ARROW_H},${cy} L${cx + ARROW_H},${cy + ARROW_S}`
+              : `M${cx - ARROW_S},${cy + ARROW_H} L${cx},${cy - ARROW_H} L${cx + ARROW_S},${cy + ARROW_H}`
       return (
         <path
           key={i}
@@ -192,10 +235,10 @@ function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
       />
 
       {/* Arrow patterns: top→right, right→down, bottom→left, left→up */}
-      {arrowGroup('right', rx,      rx + rw, topCY,    beltTop,    `${uid}t`)}
-      {arrowGroup('down',  ry,      ry + rh, rightCX,  beltRight,  `${uid}r`)}
-      {arrowGroup('left',  rx,      rx + rw, bottomCY, beltBottom, `${uid}b`)}
-      {arrowGroup('up',    ry,      ry + rh, leftCX,   beltLeft,   `${uid}l`)}
+      {arrowGroup('right', rx, rx + rw, topCY, beltTop, `${uid}t`)}
+      {arrowGroup('down', ry, ry + rh, rightCX, beltRight, `${uid}r`)}
+      {arrowGroup('left', rx, rx + rw, bottomCY, beltBottom, `${uid}b`)}
+      {arrowGroup('up', ry, ry + rh, leftCX, beltLeft, `${uid}l`)}
     </svg>
   )
 }
