@@ -30,24 +30,31 @@ export function updateMenu(id: number, input: MenuUpdateInput): Promise<MenuItem
   return staffFetch<MenuItem>(`/api/v1/admin/menu/${id}`, { method: 'PUT', body: input })
 }
 
-export function changeMenuPrice(id: number, price: number): Promise<MenuItem> {
-  return staffFetch<MenuItem>(`/api/v1/admin/menu/${id}/price`, {
+export function changeMenuPrice(id: number, price: number): Promise<void> {
+  return staffFetch<void>(`/api/v1/admin/menu/${id}/price`, {
     method: 'PATCH',
     body: { price },
   })
 }
 
-export function restockMenu(id: number, quantity: number): Promise<MenuItem> {
-  return staffFetch<MenuItem>(`/api/v1/admin/menu/${id}/restock`, {
+export function restockMenu(id: number, quantity: number): Promise<void> {
+  return staffFetch<void>(`/api/v1/admin/menu/${id}/restock`, {
     method: 'PATCH',
     body: { quantity },
   })
 }
 
-export function activateMenu(id: number): Promise<MenuItem> {
-  return staffFetch<MenuItem>(`/api/v1/admin/menu/${id}/activate`, { method: 'PATCH' })
+export function setMenuStock(id: number, stockCount: number | null): Promise<void> {
+  return staffFetch<void>(`/api/v1/admin/menu/${id}/stock`, {
+    method: 'PATCH',
+    body: { stockCount },
+  })
 }
 
-export function deactivateMenu(id: number): Promise<MenuItem> {
-  return staffFetch<MenuItem>(`/api/v1/admin/menu/${id}/deactivate`, { method: 'PATCH' })
+export function activateMenu(id: number): Promise<void> {
+  return staffFetch<void>(`/api/v1/admin/menu/${id}/activate`, { method: 'PATCH' })
+}
+
+export function deactivateMenu(id: number): Promise<void> {
+  return staffFetch<void>(`/api/v1/admin/menu/${id}/deactivate`, { method: 'PATCH' })
 }
