@@ -15,6 +15,8 @@ const ARROW_STEP = 5.5
 const ARROW_DUR = '1.1s'
 const BELT_ACTIVE = '#3ec4b4'
 const BELT_INACTIVE = '#cbd5e1'
+// belt 두께: 모든 방향 동일 — 실제 gap과 무관하게 균일한 벨트 시각
+const BELT_THICKNESS = 4.5
 // 화살표 크기: belt 두께와 무관하게 고정
 const ARROW_H = 1.1
 const ARROW_S = 0.85
@@ -71,23 +73,11 @@ function ConveyorRail({ elements, segments, tables }: ConveyorRailProps) {
     (t) => !sideTables.has(t) && t.y != null && t.y >= kitchenBottom,
   )
 
-  // 방향별 belt 두께: 테이블 없는 방향은 0 → 벨트 없음
-  const beltLeft =
-    westTables.length > 0
-      ? kx - Math.max(...westTables.map((t) => t.x! + (t.width ?? 0)))
-      : 0
-  const beltRight =
-    eastTables.length > 0
-      ? Math.min(...eastTables.map((t) => t.x!)) - (kx + kw)
-      : 0
-  const beltTop =
-    northTables.length > 0
-      ? ky - Math.max(...northTables.map((t) => t.y! + (t.height ?? 0)))
-      : 0
-  const beltBottom =
-    southTables.length > 0
-      ? Math.min(...southTables.map((t) => t.y!)) - (ky + kh)
-      : 0
+  // 방향별 belt 두께: 테이블 없는 방향은 0, 있는 방향은 고정 BELT_THICKNESS
+  const beltLeft = westTables.length > 0 ? BELT_THICKNESS : 0
+  const beltRight = eastTables.length > 0 ? BELT_THICKNESS : 0
+  const beltTop = northTables.length > 0 ? BELT_THICKNESS : 0
+  const beltBottom = southTables.length > 0 ? BELT_THICKNESS : 0
 
   // belt가 하나도 없으면 렌더링 생략
   if (beltLeft === 0 && beltRight === 0 && beltTop === 0 && beltBottom === 0) return null
