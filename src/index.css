@@ -5,20 +5,20 @@
   --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
     Roboto, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 
-  --color-primary-50: #eaf6fe;
-  --color-primary-100: #d3edfd;
-  --color-primary-200: #a7dbfa;
-  --color-primary-300: #7ac9f8;
-  --color-primary-400: #38bdf8;
-  --color-primary-500: #0ea5e9;
-  --color-primary-600: #0284c7;
-  --color-primary-700: #0369a1;
+  --color-primary-50: #edfaf8;
+  --color-primary-100: #d0f4ee;
+  --color-primary-200: #a2e8dc;
+  --color-primary-300: #6dd7c8;
+  --color-primary-400: #3ec4b4;
+  --color-primary-500: #17a896;
+  --color-primary-600: #118a7a;
+  --color-primary-700: #0c6b5f;
 
   --color-accent-300: #ffd76a;
   --color-accent-400: #ffc233;
   --color-accent-500: #ffaf00;
 
-  --color-surface: #f6f9fb;
+  --color-surface: #f4f9f8;
   --color-surface-raised: #ffffff;
   --color-ink: #1e293b;
   --color-muted: #64748b;
