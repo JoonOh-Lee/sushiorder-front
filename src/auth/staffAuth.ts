@@ -5,6 +5,7 @@ export interface StaffAuth {
   username: string
   role: StaffRole
   stationId: number | null
+  onDuty: boolean
 }
 
 const STAFF_AUTH_KEY = 'sushiorder.staff.auth'
@@ -32,6 +33,12 @@ export function updateStaffAuthStationId(stationId: number): void {
   const current = getStaffAuth()
   if (!current) return
   setStaffAuth({ ...current, stationId })
+}
+
+export function updateStaffAuthOnDuty(onDuty: boolean): void {
+  const current = getStaffAuth()
+  if (!current) return
+  setStaffAuth({ ...current, onDuty })
 }
 
 export function getStaffToken(): string | null {
