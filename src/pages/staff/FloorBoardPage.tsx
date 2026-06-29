@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/types'
 import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../api/staff/floorPlanElementApi'
 import { listRailSegments, type RailSegment } from '../../api/staff/railSegmentApi'
-import { listStations, setMyDuty, type Station } from '../../api/staff/stationApi'
-import { clearStaffAuth, getStaffAuth, updateStaffAuthOnDuty, type StaffAuth } from '../../api/staff/auth'
+import { listStations, type Station } from '../../api/staff/stationApi'
+import { getStaffAuth, type StaffAuth } from '../../api/staff/auth'
+
+import { StaffHeader } from '../../components/StaffHeader'
 import { listStaffCalls, resolveStaffCall, type CallType, type StaffCall } from '../../api/staff/callApi'
 import {
   cancelStationItems,
@@ -235,7 +237,6 @@ function FloorBoardPage() {
   const navigate = useNavigate()
   const [auth] = useState<StaffAuth | null>(() => getStaffAuth())
   const [stations, setStations] = useState<Station[]>([])
-  const [onDuty, setOnDuty] = useState<boolean>(() => getStaffAuth()?.onDuty ?? false)
   const [status, setStatus] = useState<Status>('loading')
   const [errorMessage, setErrorMessage] = useState('')
   const [actionError, setActionError] = useState('')
@@ -248,7 +249,6 @@ function FloorBoardPage() {
   const [coveringStationIds, setCoveringStationIds] = useState<number[]>(() => (auth ? loadCoveringStationIds(auth.username) : []))
   const [processingKey, setProcessingKey] = useState<string | null>(null)
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null)
-  const [showMenu, setShowMenu] = useState(false)
   const [showListModal, setShowListModal] = useState(false)
   const [railDirection] = useState<RailDirection>(
     () => (localStorage.getItem(RAIL_DIRECTION_KEY) as RailDirection | null) ?? 'cw',
@@ -306,25 +306,6 @@ function FloorBoardPage() {
     const timer = setTimeout(() => setActionError(''), ACTION_ERROR_DISPLAY_MS)
     return () => clearTimeout(timer)
   }, [actionError])
-
-  function handleLogout() {
-    clearStaffAuth()
-    navigate('/staff/login')
-  }
-
-  function handleToggleDuty() {
-    const next = !onDuty
-    setMyDuty(next)
-      .then(() => {
-        setOnDuty(next)
-        updateStaffAuthOnDuty(next)
-        setShowMenu(false)
-      })
-      .catch((err: unknown) => {
-        setActionError(err instanceof ApiError ? err.message : '근무 상태 변경에 실패했습니다.')
-        setShowMenu(false)
-      })
-  }
 
   function addCoverage(id: number) {
     setCoveringStationIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
@@ -426,99 +407,7 @@ function FloorBoardPage() {
 
   return (
     <div className="flex h-screen flex-col bg-surface">
-      <header className="flex items-center justify-between bg-primary-500 px-4 py-2.5 text-white">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold">
-            {auth.username} · {ROLE_LABEL[auth.role]} · {stationNameFor(auth.stationId)}
-          </p>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${onDuty ? 'bg-green-400 text-white' : 'bg-white/25 text-white'}`}>
-            {onDuty ? '근무 중' : 'OFF'}
-          </span>
-        </div>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowMenu((prev) => !prev)}
-            aria-label="설정"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-base transition-transform active:scale-90"
-          >
-            ⚙
-          </button>
-          {showMenu && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
-                <button
-                  type="button"
-                  onClick={handleToggleDuty}
-                  className={`block w-full px-4 py-3 text-left text-sm font-semibold ${onDuty ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
-                >
-                  {onDuty ? '근무 종료' : '근무 시작'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMenu(false)
-                    navigate('/staff/station')
-                  }}
-                  className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                >
-                  스테이션 변경
-                </button>
-                {auth.role === 'ADMIN' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/menu') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      메뉴 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/notice') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      공지사항 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/station') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      스테이션 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/staff') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      직원 계정 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/table-layout') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      매장 배치 설정
-                    </button>
-                  </>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMenu(false)
-                    handleLogout()
-                  }}
-                  className="block w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
-                >
-                  로그아웃
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </header>
+      <StaffHeader />
 
       {actionError && <p className="bg-red-50 px-4 py-2 text-center text-sm text-red-600">{actionError}</p>}
 
