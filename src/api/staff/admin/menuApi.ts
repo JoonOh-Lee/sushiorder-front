@@ -1,5 +1,5 @@
-import { staffFetch } from '../api/staffApi'
-import type { MenuItem } from '../customer/menuApi'
+import { staffFetch } from '../../staffApi'
+import type { MenuItem } from '../../../customer/menuApi'
 
 export interface MenuCreateInput {
   name: string

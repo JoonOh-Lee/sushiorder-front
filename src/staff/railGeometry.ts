@@ -1,6 +1,6 @@
-import type { FloorPlanElement } from '../auth/floorPlanElementApi'
-import type { RailSegment } from '../auth/railSegmentApi'
-import type { RestaurantTable } from '../auth/tableApi' // tableToArcT에서 사용
+import type { FloorPlanElement } from '../api/staff/floorPlanElementApi'
+import type { RailSegment } from '../api/staff/railSegmentApi'
+import type { RestaurantTable } from '../api/staff/tableApi'
 
 export const BELT_THICKNESS = 4.5
 export const KITCHEN_GAP = 0.8
