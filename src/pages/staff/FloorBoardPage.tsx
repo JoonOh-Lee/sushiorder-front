@@ -22,6 +22,8 @@ import {
   type OrderStatus,
 } from '../../api/staff/orderApi'
 import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
+import { releaseTable } from '../../api/staff/admin/tableApi'
+import { closeSession } from '../../api/staff/admin/sessionApi'
 import { formatTime } from '../../utils/format'
 import ConveyorRail from '../../staff/ConveyorRail'
 import { formatSeatLabel } from '../../staff/seatLabel'
@@ -259,6 +261,8 @@ function FloorBoardPage() {
     () => (localStorage.getItem(RAIL_DIRECTION_KEY) as RailDirection | null) ?? 'cw',
   )
   const [adminPanel, setAdminPanel] = useState<AdminPanelKey | null>(null)
+  const [releasing, setReleasing] = useState(false)
+  const [releaseConfirm, setReleaseConfirm] = useState(false)
 
   useEffect(() => {
     if (!auth) {
@@ -351,6 +355,26 @@ function FloorBoardPage() {
         setActionError(err instanceof ApiError ? err.message : '호출 처리에 실패했습니다.')
         setProcessingKey(null)
       })
+  }
+
+  function handleReleaseTable(table: RestaurantTable) {
+    if (!releaseConfirm) { setReleaseConfirm(true); return }
+    setReleasing(true)
+    const sessionId = orders.find((o) => o.tableId === table.id)?.sessionId ?? null
+    const tasks: Promise<void>[] = [releaseTable(table.id)]
+    if (sessionId !== null) tasks.push(closeSession(sessionId))
+    Promise.all(tasks)
+      .then(() => {
+        setTables((prev) => prev.map((t) => (t.id === table.id ? { ...t, status: 'EMPTY' } : t)))
+        setOrders((prev) => prev.filter((o) => o.tableId !== table.id))
+        setCalls((prev) => prev.filter((c) => c.tableId !== table.id))
+        setSelectedTableId(null)
+        setReleaseConfirm(false)
+      })
+      .catch((err: unknown) => {
+        setActionError(err instanceof ApiError ? err.message : '퇴석 처리에 실패했습니다.')
+      })
+      .finally(() => setReleasing(false))
   }
 
   const responsibleStationIds = Array.from(new Set([stationId, ...coveringStationIds].filter((id): id is number => id !== null)))
@@ -467,7 +491,7 @@ function FloorBoardPage() {
                 <button
                   key={table.id}
                   type="button"
-                  onClick={() => setSelectedTableId(table.id)}
+                  onClick={() => { setSelectedTableId(table.id); setReleaseConfirm(false) }}
                   className={`absolute flex items-center justify-center rounded-lg text-xs font-semibold shadow-sm transition-transform active:scale-95 ${tableHighlightClass(table)} ${
                     selectedTableId === table.id ? 'ring-2 ring-primary-600' : ''
                   }`}
@@ -536,6 +560,25 @@ function FloorBoardPage() {
                       ))
                     })}
                   </ul>
+                )}
+
+                {/* 퇴석 처리 */}
+                {selectedTable.status === 'OCCUPIED' && (
+                  <div className="mt-4 border-t border-primary-100 pt-4">
+                    <button
+                      type="button"
+                      disabled={releasing}
+                      onClick={() => handleReleaseTable(selectedTable)}
+                      onBlur={() => setReleaseConfirm(false)}
+                      className={`w-full rounded-full py-3 text-sm font-semibold transition-colors disabled:opacity-50 ${
+                        releaseConfirm
+                          ? 'bg-red-500 text-white'
+                          : 'bg-ink/8 text-ink'
+                      }`}
+                    >
+                      {releasing ? '처리 중...' : releaseConfirm ? '한 번 더 누르면 퇴석 처리됩니다' : '퇴석 처리'}
+                    </button>
+                  </div>
                 )}
               </div>
             )}
