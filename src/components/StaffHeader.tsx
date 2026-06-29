@@ -84,53 +84,54 @@ export function StaffHeader({ title }: StaffHeaderProps) {
       )}
 
       <div className="flex items-center gap-1.5">
-        {/* 아바타 버튼 — 클릭 시 내 정보 레이어 */}
+        {/* 아바타 — 클릭 시 계정 정보 레이어 */}
         <div className="relative">
           <button
             type="button"
             onClick={() => { setShowUserMenu((p) => !p); setShowStationMenu(false); setShowAdminMenu(false) }}
-            className="flex items-center gap-1.5 active:opacity-75"
-          >
-            <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold transition-colors ${
+            className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold transition-colors active:opacity-75 ${
               onDuty ? 'bg-green-500 text-white' : 'bg-white/25 text-white/70'
-            }`}>
-              {auth.username.charAt(0).toUpperCase()}
-            </span>
-            <span className={`${badgeCls} transition-colors ${
-              onDuty ? 'bg-green-400/30 text-green-100' : 'bg-white/10 text-white/50'
-            }`}>
-              {onDuty ? 'ON' : 'OFF'}
-            </span>
+            }`}
+          >
+            {auth.username.charAt(0).toUpperCase()}
           </button>
 
           {showUserMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowUserMenu(false)} />
-              <div className="absolute left-0 top-11 z-20 w-52 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
-                {/* 내 정보 */}
-                <div className="border-b border-primary-100 px-4 py-3">
-                  <p className="font-bold text-ink">{auth.username}</p>
-                  <p className="mt-0.5 text-xs text-muted">{ROLE_LABEL[auth.role]} · {stationName(auth.stationId)}</p>
+              <div className="absolute left-0 top-9 z-20 w-52 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
+                <div className="px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">계정 정보</p>
+                  <p className="mt-2 text-base font-bold text-ink">{auth.username}</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-600">
+                      {ROLE_LABEL[auth.role]}
+                    </span>
+                    <span className="rounded-full bg-ink/8 px-2 py-0.5 text-[11px] font-semibold text-muted">
+                      {stationName(auth.stationId)}
+                    </span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      onDuty ? 'bg-green-100 text-green-700' : 'bg-ink/8 text-muted'
+                    }`}>
+                      {onDuty ? '근무 중' : '비근무'}
+                    </span>
+                  </div>
                 </div>
-                {/* 근무 토글 */}
-                <button
-                  type="button"
-                  onClick={handleToggleDuty}
-                  className={`flex w-full items-center justify-between px-4 py-3 text-sm font-semibold ${
-                    onDuty ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'
-                  }`}
-                >
-                  <span>{onDuty ? '근무 종료' : '근무 시작'}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                    onDuty ? 'bg-green-100 text-green-600' : 'bg-ink/8 text-muted'
-                  }`}>
-                    {onDuty ? 'ON' : 'OFF'}
-                  </span>
-                </button>
               </div>
             </>
           )}
         </div>
+
+        {/* ON/OFF 뱃지 — 클릭 시 즉시 근무 토글 */}
+        <button
+          type="button"
+          onClick={handleToggleDuty}
+          className={`${badgeCls} transition-colors active:opacity-75 ${
+            onDuty ? 'bg-green-400/30 text-green-100' : 'bg-white/10 text-white/50'
+          }`}
+        >
+          {onDuty ? 'ON' : 'OFF'}
+        </button>
 
         {/* 스테이션 뱃지 — 클릭 시 스테이션 목록 */}
         <div className="relative">
