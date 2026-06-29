@@ -17,6 +17,10 @@ export function updateTablePosition(id: number, position: TablePosition): Promis
   })
 }
 
+export function releaseTable(tableId: number): Promise<void> {
+  return staffFetch<void>(`/api/v1/admin/table/${tableId}/release`, { method: 'PATCH' })
+}
+
 export async function fetchTableQrBlobUrl(tableId: number): Promise<string> {
   const token = getStaffToken()
   const res = await fetch(`${API_BASE_URL}/api/v1/admin/table/${tableId}/qr`, {
