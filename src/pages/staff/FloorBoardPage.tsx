@@ -3,8 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/types'
 import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../api/staff/floorPlanElementApi'
 import { listRailSegments, type RailSegment } from '../../api/staff/railSegmentApi'
-import { listStations, setMyDuty, type Station } from '../../api/staff/stationApi'
-import { clearStaffAuth, getStaffAuth, updateStaffAuthOnDuty, type StaffAuth } from '../../api/staff/auth'
+import { listStations, type Station } from '../../api/staff/stationApi'
+import { getStaffAuth, type StaffAuth } from '../../api/staff/auth'
+
+import { StaffHeader, type AdminPanelKey } from '../../components/StaffHeader'
+import MenuManagePage from '../admin/MenuManagePage'
+import NoticeManagePage from '../admin/NoticeManagePage'
+import StationManagePage from '../admin/StationManagePage'
+import StaffManagePage from '../admin/StaffManagePage'
+import TableLayoutPage from '../admin/TableLayoutPage'
 import { listStaffCalls, resolveStaffCall, type CallType, type StaffCall } from '../../api/staff/callApi'
 import {
   cancelStationItems,
@@ -15,6 +22,8 @@ import {
   type OrderStatus,
 } from '../../api/staff/orderApi'
 import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
+import { releaseTable } from '../../api/staff/admin/tableApi'
+import { closeSession } from '../../api/staff/admin/sessionApi'
 import { formatTime } from '../../utils/format'
 import ConveyorRail from '../../staff/ConveyorRail'
 import { formatSeatLabel } from '../../staff/seatLabel'
@@ -235,7 +244,6 @@ function FloorBoardPage() {
   const navigate = useNavigate()
   const [auth] = useState<StaffAuth | null>(() => getStaffAuth())
   const [stations, setStations] = useState<Station[]>([])
-  const [onDuty, setOnDuty] = useState<boolean>(() => getStaffAuth()?.onDuty ?? false)
   const [status, setStatus] = useState<Status>('loading')
   const [errorMessage, setErrorMessage] = useState('')
   const [actionError, setActionError] = useState('')
@@ -248,11 +256,13 @@ function FloorBoardPage() {
   const [coveringStationIds, setCoveringStationIds] = useState<number[]>(() => (auth ? loadCoveringStationIds(auth.username) : []))
   const [processingKey, setProcessingKey] = useState<string | null>(null)
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null)
-  const [showMenu, setShowMenu] = useState(false)
   const [showListModal, setShowListModal] = useState(false)
   const [railDirection] = useState<RailDirection>(
     () => (localStorage.getItem(RAIL_DIRECTION_KEY) as RailDirection | null) ?? 'cw',
   )
+  const [adminPanel, setAdminPanel] = useState<AdminPanelKey | null>(null)
+  const [releasing, setReleasing] = useState(false)
+  const [releaseConfirm, setReleaseConfirm] = useState(false)
 
   useEffect(() => {
     if (!auth) {
@@ -307,25 +317,6 @@ function FloorBoardPage() {
     return () => clearTimeout(timer)
   }, [actionError])
 
-  function handleLogout() {
-    clearStaffAuth()
-    navigate('/staff/login')
-  }
-
-  function handleToggleDuty() {
-    const next = !onDuty
-    setMyDuty(next)
-      .then(() => {
-        setOnDuty(next)
-        updateStaffAuthOnDuty(next)
-        setShowMenu(false)
-      })
-      .catch((err: unknown) => {
-        setActionError(err instanceof ApiError ? err.message : '근무 상태 변경에 실패했습니다.')
-        setShowMenu(false)
-      })
-  }
-
   function addCoverage(id: number) {
     setCoveringStationIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
   }
@@ -364,6 +355,26 @@ function FloorBoardPage() {
         setActionError(err instanceof ApiError ? err.message : '호출 처리에 실패했습니다.')
         setProcessingKey(null)
       })
+  }
+
+  function handleReleaseTable(table: RestaurantTable) {
+    if (!releaseConfirm) { setReleaseConfirm(true); return }
+    setReleasing(true)
+    const sessionId = orders.find((o) => o.tableId === table.id)?.sessionId ?? null
+    const tasks: Promise<void>[] = [releaseTable(table.id)]
+    if (sessionId !== null) tasks.push(closeSession(sessionId))
+    Promise.all(tasks)
+      .then(() => {
+        setTables((prev) => prev.map((t) => (t.id === table.id ? { ...t, status: 'EMPTY' } : t)))
+        setOrders((prev) => prev.filter((o) => o.tableId !== table.id))
+        setCalls((prev) => prev.filter((c) => c.tableId !== table.id))
+        setSelectedTableId(null)
+        setReleaseConfirm(false)
+      })
+      .catch((err: unknown) => {
+        setActionError(err instanceof ApiError ? err.message : '퇴석 처리에 실패했습니다.')
+      })
+      .finally(() => setReleasing(false))
   }
 
   const responsibleStationIds = Array.from(new Set([stationId, ...coveringStationIds].filter((id): id is number => id !== null)))
@@ -426,99 +437,7 @@ function FloorBoardPage() {
 
   return (
     <div className="flex h-screen flex-col bg-surface">
-      <header className="flex items-center justify-between bg-primary-500 px-4 py-2.5 text-white">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold">
-            {auth.username} · {ROLE_LABEL[auth.role]} · {stationNameFor(auth.stationId)}
-          </p>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${onDuty ? 'bg-green-400 text-white' : 'bg-white/25 text-white'}`}>
-            {onDuty ? '근무 중' : 'OFF'}
-          </span>
-        </div>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowMenu((prev) => !prev)}
-            aria-label="설정"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-base transition-transform active:scale-90"
-          >
-            ⚙
-          </button>
-          {showMenu && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
-                <button
-                  type="button"
-                  onClick={handleToggleDuty}
-                  className={`block w-full px-4 py-3 text-left text-sm font-semibold ${onDuty ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
-                >
-                  {onDuty ? '근무 종료' : '근무 시작'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMenu(false)
-                    navigate('/staff/station')
-                  }}
-                  className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                >
-                  스테이션 변경
-                </button>
-                {auth.role === 'ADMIN' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/menu') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      메뉴 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/notice') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      공지사항 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/station') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      스테이션 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/staff') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      직원 계정 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/table-layout') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      매장 배치 설정
-                    </button>
-                  </>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowMenu(false)
-                    handleLogout()
-                  }}
-                  className="block w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
-                >
-                  로그아웃
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </header>
+      <StaffHeader onOpenPanel={setAdminPanel} />
 
       {actionError && <p className="bg-red-50 px-4 py-2 text-center text-sm text-red-600">{actionError}</p>}
 
@@ -572,7 +491,7 @@ function FloorBoardPage() {
                 <button
                   key={table.id}
                   type="button"
-                  onClick={() => setSelectedTableId(table.id)}
+                  onClick={() => { setSelectedTableId(table.id); setReleaseConfirm(false) }}
                   className={`absolute flex items-center justify-center rounded-lg text-xs font-semibold shadow-sm transition-transform active:scale-95 ${tableHighlightClass(table)} ${
                     selectedTableId === table.id ? 'ring-2 ring-primary-600' : ''
                   }`}
@@ -642,6 +561,25 @@ function FloorBoardPage() {
                     })}
                   </ul>
                 )}
+
+                {/* 퇴석 처리 */}
+                {selectedTable.status === 'OCCUPIED' && (
+                  <div className="mt-4 border-t border-primary-100 pt-4">
+                    <button
+                      type="button"
+                      disabled={releasing}
+                      onClick={() => handleReleaseTable(selectedTable)}
+                      onBlur={() => setReleaseConfirm(false)}
+                      className={`w-full rounded-full py-3 text-sm font-semibold transition-colors disabled:opacity-50 ${
+                        releaseConfirm
+                          ? 'bg-red-500 text-white'
+                          : 'bg-ink/8 text-ink'
+                      }`}
+                    >
+                      {releasing ? '처리 중...' : releaseConfirm ? '한 번 더 누르면 퇴석 처리됩니다' : '퇴석 처리'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -665,6 +603,20 @@ function FloorBoardPage() {
               </span>
             )}
           </button>
+        </div>
+      )}
+
+      {/* 관리자 패널 오버레이 */}
+      {adminPanel && (
+        <div className="fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-ink/40" onClick={() => setAdminPanel(null)} />
+          <div className="absolute inset-0 animate-admin-panel-in overflow-hidden shadow-2xl">
+            {adminPanel === 'menu' && <MenuManagePage onClose={() => setAdminPanel(null)} />}
+            {adminPanel === 'notice' && <NoticeManagePage onClose={() => setAdminPanel(null)} />}
+            {adminPanel === 'station' && <StationManagePage onClose={() => setAdminPanel(null)} />}
+            {adminPanel === 'staff' && <StaffManagePage onClose={() => setAdminPanel(null)} />}
+            {adminPanel === 'table-layout' && <TableLayoutPage onClose={() => setAdminPanel(null)} />}
+          </div>
         </div>
       )}
 
