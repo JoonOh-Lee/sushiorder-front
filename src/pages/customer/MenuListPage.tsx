@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ApiError } from '../../api/types'
 import { dislikeMenu, fetchMenus, likeMenu, type MenuItem } from '../../customer/menuApi'
-import { MenuThumbnail } from '../../customer/MenuThumbnail'
-import { ImageLightbox } from '../../customer/ImageLightbox'
-import { CartIcon, ThumbDownIcon, ThumbUpIcon } from '../../customer/icons'
+import { MenuThumbnail } from '../../components/MenuThumbnail'
+import { ImageLightbox } from '../../components/ImageLightbox'
+import { CartIcon, ThumbDownIcon, ThumbUpIcon } from '../../components/icons'
+import { CATEGORY_LABEL, CATEGORY_NOTE, CATEGORY_ORDER } from '../../constants/menu'
 import MenuDetailSheet from './MenuDetailSheet'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -14,36 +15,6 @@ interface MenuListPageProps {
   onQuantityChange: (menu: MenuItem, quantity: number) => void
 }
 
-// 백엔드 카테고리 키 → 한글 라벨. 매핑이 없는 새 카테고리가 와도 키 그대로 보여주면 되니 깨지지 않는다.
-const CATEGORY_LABEL: Record<string, string> = {
-  PREMIUM_SUSHI: '프리미엄초밥',
-  FRESH_SUSHI: '신선초밥',
-  TUNA_SUSHI: '참치초밥',
-  MEAT_SUSHI: '고기초밥',
-  GRILLED_SUSHI: '구운초밥',
-  SEASONED_SUSHI: '양념초밥',
-  GUNKAN_SUSHI: '군함초밥',
-  FRIED: '튀김류',
-  DESSERT_ETC: '디저트/기타',
-  MEAL: '식사류',
-  DRINK_ALCOHOL: '음료/주류',
-  TAKEOUT: '포장',
-  // 이전 카테고리 체계(마이그레이션 전 데이터 호환용)
-  SUSHI: '초밥',
-  ROLL: '롤',
-  SIDE: '사이드',
-  DRINK: '음료',
-  DESSERT: '디저트',
-}
-
-// 알려진 카테고리의 표시 순서. 목록에 없는 카테고리는 뒤에 가나다순으로 붙는다.
-const CATEGORY_ORDER = Object.keys(CATEGORY_LABEL)
-
-// 카테고리 전체에 적용되는 안내 — 카드마다 반복하면 지저분하고 좌측 레일은 좁아서 못 넣으니,
-// 해당 카테고리를 선택했을 때 목록 위에 한 번만 보여준다.
-const CATEGORY_NOTE: Record<string, string> = {
-  PREMIUM_SUSHI: '일일 한정 수량으로 제공돼요. 소진 시 품절될 수 있습니다.',
-}
 
 function MenuListPage({ cartQuantities, onQuantityChange }: MenuListPageProps) {
   const [status, setStatus] = useState<Status>('loading')

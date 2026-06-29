@@ -1,4 +1,4 @@
-import { clearStaffAuth, getStaffToken } from '../auth/staffAuth'
+import { clearStaffAuth, getStaffToken } from './staff/auth'
 import { apiFetch, type RequestOptions } from './client'
 import { UnauthorizedError } from './types'
 
