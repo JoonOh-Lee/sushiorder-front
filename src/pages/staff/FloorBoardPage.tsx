@@ -483,6 +483,13 @@ function FloorBoardPage() {
                     </button>
                     <button
                       type="button"
+                      onClick={() => { setShowMenu(false); navigate('/admin/station') }}
+                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
+                    >
+                      스테이션 관리
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => { setShowMenu(false); navigate('/admin/table-layout') }}
                       className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
                     >
