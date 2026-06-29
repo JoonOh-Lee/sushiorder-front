@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/types'
-import { listStations, assignMyStation, type Station } from '../../auth/stationApi'
-import { getStaffAuth, updateStaffAuthStationId, type StaffAuth } from '../../auth/staffAuth'
+import { listStations, assignMyStation, type Station } from '../../api/staff/stationApi'
+import { getStaffAuth, updateStaffAuthStationId, type StaffAuth } from '../../api/staff/auth'
 
 type Status = 'loading' | 'ready' | 'error'
 

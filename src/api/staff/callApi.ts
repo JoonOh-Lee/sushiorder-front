@@ -1,4 +1,4 @@
-import { staffFetch } from '../api/staffApi'
+import { staffFetch } from '../staffApi'
 
 export type CallType = 'WATER_REFILL' | 'INQUIRY' | 'ITEM_REQUEST' | 'OTHER'
 export type CallStatus = 'REQUESTED' | 'RESOLVED'

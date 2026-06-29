@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/types'
-import { login } from '../../auth/authApi'
-import { setStaffAuth } from '../../auth/staffAuth'
+import { login } from '../../api/staff/authApi'
+import { setStaffAuth } from '../../api/staff/auth'
 
 type Status = 'idle' | 'submitting' | 'error'
 
