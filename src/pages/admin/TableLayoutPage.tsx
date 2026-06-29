@@ -607,9 +607,6 @@ function TableLayoutPage() {
               >
                 {reordering ? '재정렬 중...' : '순서 재정렬'}
               </button>
-              <span className="font-semibold text-ink">
-                {railSegments.filter((s) => s.active).length}/{railSegments.length} 구간 활성
-              </span>
             </>
           )}
         </div>
@@ -769,14 +766,6 @@ function TableLayoutPage() {
             </div>
           )}
 
-          {mode === 'rail' && (
-            <p className="text-center text-sm text-muted">
-              테이블을 탭하여 직전 구간의 레일을 켜거나 끄세요 ·{' '}
-              <span className="font-semibold text-ink">
-                {railSegments.filter((s) => s.active).length}/{railSegments.length} 활성
-              </span>
-            </p>
-          )}
         </div>
       )}
 
