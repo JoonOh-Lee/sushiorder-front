@@ -5,3 +5,5 @@ export interface ApiResponse<T> {
 }
 
 export class ApiError extends Error {}
+
+export class UnauthorizedError extends Error {}
