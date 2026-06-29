@@ -11,6 +11,7 @@ import { fetchTableQrBlobUrl, updateTablePosition } from '../../api/staff/admin/
 import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../api/staff/floorPlanElementApi'
 import { listRailSegments, type RailSegment } from '../../api/staff/railSegmentApi'
 import { getStaffAuth } from '../../api/staff/auth'
+import { StaffHeader } from '../../components/StaffHeader'
 import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
 import ConveyorRail from '../../staff/ConveyorRail'
 import { computeBeltGeo, computeEffectiveActiveIds, computeReorderFromPositions } from '../../staff/railGeometry'
@@ -541,33 +542,7 @@ function TableLayoutPage() {
 
   return (
     <div className="flex h-screen flex-col bg-surface">
-      <header className="flex shrink-0 items-center gap-3 bg-primary-500 px-4 py-2.5 text-white">
-        <button
-          type="button"
-          onClick={() => navigate('/staff')}
-          aria-label="뒤로"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-xl transition-transform active:scale-90"
-        >
-          ←
-        </button>
-        <h1 className="text-xl font-bold">매장 배치 설정</h1>
-        <div className="ml-auto flex rounded-full bg-white/15 p-0.5 text-sm font-semibold">
-          <button
-            type="button"
-            onClick={() => handleSwitchMode('layout')}
-            className={`rounded-full px-4 py-1 transition-colors ${mode === 'layout' ? 'bg-white/30' : ''}`}
-          >
-            배치
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSwitchMode('rail')}
-            className={`rounded-full px-4 py-1 transition-colors ${mode === 'rail' ? 'bg-white/30' : ''}`}
-          >
-            레일
-          </button>
-        </div>
-      </header>
+      <StaffHeader title="매장 배치 설정" />
 
       {errorMessage && (
         <p className="shrink-0 bg-red-50 px-4 py-2 text-center text-sm text-red-600">{errorMessage}</p>
@@ -576,6 +551,23 @@ function TableLayoutPage() {
       {/* FloorBoardPage의 legend bar와 동일한 높이/구조 — 캔버스 좌표계 맞춤 */}
       {status === 'ready' && (
         <div className="flex shrink-0 items-center gap-3 border-b border-primary-100 bg-surface-raised px-3 py-1.5 text-[11px] text-muted">
+          {/* 배치/레일 탭 */}
+          <div className="flex rounded-full bg-ink/8 p-0.5 text-[11px] font-semibold">
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('layout')}
+              className={`rounded-full px-3 py-0.5 transition-colors ${mode === 'layout' ? 'bg-primary-500 text-white' : 'text-ink'}`}
+            >
+              배치
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('rail')}
+              className={`rounded-full px-3 py-0.5 transition-colors ${mode === 'rail' ? 'bg-primary-500 text-white' : 'text-ink'}`}
+            >
+              레일
+            </button>
+          </div>
           {mode === 'layout' ? (
             <>
               <span className="flex items-center gap-1">
