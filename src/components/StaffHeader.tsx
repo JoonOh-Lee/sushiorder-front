@@ -90,7 +90,7 @@ export function StaffHeader({ title }: StaffHeaderProps) {
             type="button"
             onClick={() => { setShowUserMenu((p) => !p); setShowStationMenu(false); setShowAdminMenu(false) }}
             className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold transition-colors active:opacity-75 ${
-              onDuty ? 'bg-green-500 text-white' : 'bg-white/25 text-white/70'
+              onDuty ? 'bg-accent-400 text-ink' : 'bg-white/25 text-white/70'
             }`}
           >
             {auth.username.charAt(0).toUpperCase()}
@@ -111,7 +111,7 @@ export function StaffHeader({ title }: StaffHeaderProps) {
                       {stationName(auth.stationId)}
                     </span>
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      onDuty ? 'bg-green-100 text-green-700' : 'bg-ink/8 text-muted'
+                      onDuty ? 'bg-accent-400/20 text-accent-600' : 'bg-ink/8 text-muted'
                     }`}>
                       {onDuty ? '근무 중' : '비근무'}
                     </span>
@@ -127,7 +127,7 @@ export function StaffHeader({ title }: StaffHeaderProps) {
           type="button"
           onClick={handleToggleDuty}
           className={`${badgeCls} transition-colors active:opacity-75 ${
-            onDuty ? 'bg-green-400/30 text-green-100' : 'bg-white/10 text-white/50'
+            onDuty ? 'bg-accent-400 text-ink' : 'bg-white/10 text-white/50'
           }`}
         >
           {onDuty ? 'ON' : 'OFF'}
