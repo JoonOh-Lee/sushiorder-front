@@ -1,7 +1,7 @@
-import { API_BASE_URL } from '../api/client'
-import { staffFetch } from '../api/staffApi'
-import { getStaffToken } from './staffAuth'
-import type { RestaurantTable } from './tableApi'
+import { API_BASE_URL } from '../../client'
+import { staffFetch } from '../../staffApi'
+import { getStaffToken } from '../auth'
+import type { RestaurantTable } from '../tableApi'
 
 export interface TablePosition {
   x: number

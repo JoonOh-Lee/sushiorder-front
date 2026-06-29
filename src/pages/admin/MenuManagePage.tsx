@@ -11,65 +11,17 @@ import {
   setMenuStock,
   updateMenu,
   type MenuCreateInput,
-} from '../../auth/adminMenuApi'
-import { getStaffAuth } from '../../auth/staffAuth'
-import { listStations, type Station } from '../../auth/stationApi'
+} from '../../api/staff/admin/menuApi'
+import { getStaffAuth } from '../../api/staff/auth'
+import { listStations, type Station } from '../../api/staff/stationApi'
+import { CATEGORY_LABEL } from '../../constants/menu'
+import { MenuThumbnail } from '../../components/MenuThumbnail'
 import type { MenuItem } from '../../customer/menuApi'
 
 type Status = 'loading' | 'ready' | 'error'
 
-const CATEGORY_LABEL: Record<string, string> = {
-  PREMIUM_SUSHI: '프리미엄초밥',
-  FRESH_SUSHI: '신선초밥',
-  TUNA_SUSHI: '참치초밥',
-  MEAT_SUSHI: '고기초밥',
-  GRILLED_SUSHI: '구운초밥',
-  SEASONED_SUSHI: '양념초밥',
-  GUNKAN_SUSHI: '군함초밥',
-  FRIED: '튀김류',
-  DESSERT_ETC: '디저트/기타',
-  MEAL: '식사류',
-  DRINK_ALCOHOL: '음료/주류',
-  TAKEOUT: '포장',
-}
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  DESSERT_ETC: '🍮',
-  DRINK_ALCOHOL: '🍺',
-  FRESH_SUSHI: '🐟',
-  FRIED: '🍤',
-  GRILLED_SUSHI: '🔥',
-  GUNKAN_SUSHI: '⛵',
-  MEAL: '🍜',
-  MEAT_SUSHI: '🥩',
-  PREMIUM_SUSHI: '✨',
-  SEASONED_SUSHI: '🌿',
-  TAKEOUT: '📦',
-  TUNA_SUSHI: '🐉',
-}
-
 function categoryLabel(cat: string) {
   return CATEGORY_LABEL[cat] ?? cat
-}
-
-// ── 이미지 컴포넌트 ─────────────────────────────────────────────────────────
-function MenuThumb({ src, category }: { src: string; category: string }) {
-  const [err, setErr] = useState(false)
-  if (!src || err) {
-    return (
-      <div className="flex h-full w-full select-none items-center justify-center bg-primary-50 text-xl">
-        {CATEGORY_EMOJI[category] ?? '🍣'}
-      </div>
-    )
-  }
-  return (
-    <img
-      src={src}
-      alt=""
-      className="h-full w-full object-cover"
-      onError={() => setErr(true)}
-    />
-  )
 }
 
 // ── 입력 공통 ───────────────────────────────────────────────────────────────
@@ -657,9 +609,7 @@ function MenuManagePage() {
                     }`}
                   >
                     {/* 썸네일 */}
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl">
-                      <MenuThumb src={menu.imageUrl} category={menu.category} />
-                    </div>
+                    <MenuThumbnail menu={menu} className="h-14 w-14 shrink-0 overflow-hidden rounded-xl" />
 
                     {/* 정보 */}
                     <div className="min-w-0 flex-1">

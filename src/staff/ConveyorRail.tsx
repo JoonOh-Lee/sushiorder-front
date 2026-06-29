@@ -1,7 +1,7 @@
 import { useId } from 'react'
-import type { FloorPlanElement } from '../auth/floorPlanElementApi'
-import type { RailSegment } from '../auth/railSegmentApi'
-import type { RestaurantTable } from '../auth/tableApi'
+import type { FloorPlanElement } from '../api/staff/floorPlanElementApi'
+import type { RailSegment } from '../api/staff/railSegmentApi'
+import type { RestaurantTable } from '../api/staff/tableApi'
 import { computeBeltGeo, computeEffectiveActiveIds, tableToArcT } from './railGeometry'
 
 interface ConveyorRailProps {

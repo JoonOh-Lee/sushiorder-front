@@ -5,13 +5,13 @@ import {
   createFloorPlanElement,
   deleteFloorPlanElement,
   updateFloorPlanElementPosition,
-} from '../../auth/adminFloorPlanElementApi'
-import { activateRailSegment, deactivateRailSegment, reorderRailSegments } from '../../auth/adminRailSegmentApi'
-import { fetchTableQrBlobUrl, updateTablePosition } from '../../auth/adminTableApi'
-import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../auth/floorPlanElementApi'
-import { listRailSegments, type RailSegment } from '../../auth/railSegmentApi'
-import { getStaffAuth } from '../../auth/staffAuth'
-import { listTables, type RestaurantTable } from '../../auth/tableApi'
+} from '../../api/staff/admin/floorPlanElementApi'
+import { activateRailSegment, deactivateRailSegment, reorderRailSegments } from '../../api/staff/admin/railSegmentApi'
+import { fetchTableQrBlobUrl, updateTablePosition } from '../../api/staff/admin/tableApi'
+import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../api/staff/floorPlanElementApi'
+import { listRailSegments, type RailSegment } from '../../api/staff/railSegmentApi'
+import { getStaffAuth } from '../../api/staff/auth'
+import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
 import ConveyorRail from '../../staff/ConveyorRail'
 import { computeBeltGeo, computeEffectiveActiveIds, computeReorderFromPositions } from '../../staff/railGeometry'
 import { formatSeatLabel } from '../../staff/seatLabel'
