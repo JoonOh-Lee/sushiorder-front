@@ -19,6 +19,9 @@ import ConveyorRail from '../../staff/ConveyorRail'
 import { formatSeatLabel } from '../../staff/seatLabel'
 
 type Status = 'loading' | 'ready' | 'error'
+type RailDirection = 'cw' | 'ccw'
+
+const RAIL_DIRECTION_KEY = 'sushiorder.rail.direction'
 
 const ELEMENT_TYPE_LABEL: Record<FloorPlanElementType, string> = {
   KITCHEN: '주방',
@@ -246,6 +249,9 @@ function FloorBoardPage() {
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [showListModal, setShowListModal] = useState(false)
+  const [railDirection] = useState<RailDirection>(
+    () => (localStorage.getItem(RAIL_DIRECTION_KEY) as RailDirection | null) ?? 'cw',
+  )
 
   useEffect(() => {
     if (!auth) {
@@ -538,7 +544,7 @@ function FloorBoardPage() {
                 </div>
               ))}
 
-              <ConveyorRail elements={elements} segments={railSegments} tables={tables} />
+              <ConveyorRail elements={elements} segments={railSegments} tables={tables} direction={railDirection} />
 
               {placedTables.map((table) => (
                 <button
