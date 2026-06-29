@@ -248,6 +248,7 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   const [qrBlobUrl, setQrBlobUrl] = useState<string | null>(null)
   const [qrLoading, setQrLoading] = useState(false)
   const [reordering, setReordering] = useState(false)
+  const [fabOpen, setFabOpen] = useState(false)
 
   useEffect(() => {
     const auth = getStaffAuth()
@@ -586,27 +587,6 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
               <span className="flex items-center gap-1">
                 <span className="h-2.5 w-2.5 rounded-full bg-ink/15" /> 비활성
               </span>
-              <button
-                type="button"
-                onClick={() =>
-                  setRailDirection((d) => {
-                    const next = d === 'cw' ? 'ccw' : 'cw'
-                    localStorage.setItem(RAIL_DIRECTION_KEY, next)
-                    return next
-                  })
-                }
-                className="ml-auto flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-0.5 font-semibold text-primary-600 transition-colors active:bg-primary-100"
-              >
-                {railDirection === 'cw' ? '↻ 시계방향' : '↺ 반시계방향'}
-              </button>
-              <button
-                type="button"
-                onClick={handleReorderSegments}
-                disabled={reordering}
-                className="flex items-center gap-1 rounded-full bg-ink/8 px-2.5 py-0.5 font-semibold text-ink transition-colors active:bg-ink/15 disabled:opacity-50"
-              >
-                {reordering ? '재정렬 중...' : '순서 재정렬'}
-              </button>
             </>
           )}
         </div>
@@ -776,6 +756,56 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
         >
           {drag.label}
         </div>
+      )}
+
+      {/* 레일 모드 FAB (방향 전환 · 순서 재정렬) */}
+      {mode === 'rail' && (
+        <>
+          {fabOpen && (
+            <div className="fixed inset-0 z-20" onClick={() => setFabOpen(false)} />
+          )}
+          <div className="fixed bottom-6 right-6 z-30 flex flex-col items-end gap-2">
+            {/* 확장 액션 */}
+            <div
+              className={`flex flex-col items-end gap-2 transition-all duration-200 ${
+                fabOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
+              }`}
+            >
+              <button
+                type="button"
+                disabled={reordering}
+                onClick={() => { handleReorderSegments(); setFabOpen(false) }}
+                className="flex items-center gap-2 rounded-full bg-surface-raised px-4 py-2.5 text-sm font-semibold text-ink shadow-lg disabled:opacity-50"
+              >
+                {reordering ? '재정렬 중...' : '순서 재정렬'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRailDirection((d) => {
+                    const next = d === 'cw' ? 'ccw' : 'cw'
+                    localStorage.setItem(RAIL_DIRECTION_KEY, next)
+                    return next
+                  })
+                  setFabOpen(false)
+                }}
+                className="flex items-center gap-2 rounded-full bg-surface-raised px-4 py-2.5 text-sm font-semibold text-ink shadow-lg"
+              >
+                {railDirection === 'cw' ? '↻ 시계방향' : '↺ 반시계방향'}
+              </button>
+            </div>
+
+            {/* 메인 FAB */}
+            <button
+              type="button"
+              onClick={() => setFabOpen((p) => !p)}
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-xl text-white shadow-lg transition-transform duration-200 active:scale-90"
+              aria-label="레일 설정"
+            >
+              {fabOpen ? '✕' : '⚙'}
+            </button>
+          </div>
+        </>
       )}
 
       {showCreateModal && (
