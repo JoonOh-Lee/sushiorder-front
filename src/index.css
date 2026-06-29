@@ -59,4 +59,17 @@
   .animate-notice-fade {
     animation: notice-fade 0.4s ease-out;
   }
+
+  @keyframes admin-panel-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  .animate-admin-panel-in {
+    animation: admin-panel-in 0.22s ease-out;
+  }
 }

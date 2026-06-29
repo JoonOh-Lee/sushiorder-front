@@ -6,7 +6,12 @@ import { listRailSegments, type RailSegment } from '../../api/staff/railSegmentA
 import { listStations, type Station } from '../../api/staff/stationApi'
 import { getStaffAuth, type StaffAuth } from '../../api/staff/auth'
 
-import { StaffHeader } from '../../components/StaffHeader'
+import { StaffHeader, type AdminPanelKey } from '../../components/StaffHeader'
+import MenuManagePage from '../admin/MenuManagePage'
+import NoticeManagePage from '../admin/NoticeManagePage'
+import StationManagePage from '../admin/StationManagePage'
+import StaffManagePage from '../admin/StaffManagePage'
+import TableLayoutPage from '../admin/TableLayoutPage'
 import { listStaffCalls, resolveStaffCall, type CallType, type StaffCall } from '../../api/staff/callApi'
 import {
   cancelStationItems,
@@ -253,6 +258,7 @@ function FloorBoardPage() {
   const [railDirection] = useState<RailDirection>(
     () => (localStorage.getItem(RAIL_DIRECTION_KEY) as RailDirection | null) ?? 'cw',
   )
+  const [adminPanel, setAdminPanel] = useState<AdminPanelKey | null>(null)
 
   useEffect(() => {
     if (!auth) {
@@ -407,7 +413,7 @@ function FloorBoardPage() {
 
   return (
     <div className="flex h-screen flex-col bg-surface">
-      <StaffHeader />
+      <StaffHeader onOpenPanel={setAdminPanel} />
 
       {actionError && <p className="bg-red-50 px-4 py-2 text-center text-sm text-red-600">{actionError}</p>}
 
@@ -554,6 +560,20 @@ function FloorBoardPage() {
               </span>
             )}
           </button>
+        </div>
+      )}
+
+      {/* 관리자 패널 오버레이 */}
+      {adminPanel && (
+        <div className="fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-ink/40" onClick={() => setAdminPanel(null)} />
+          <div className="absolute inset-0 animate-admin-panel-in overflow-hidden shadow-2xl">
+            {adminPanel === 'menu' && <MenuManagePage onClose={() => setAdminPanel(null)} />}
+            {adminPanel === 'notice' && <NoticeManagePage onClose={() => setAdminPanel(null)} />}
+            {adminPanel === 'station' && <StationManagePage onClose={() => setAdminPanel(null)} />}
+            {adminPanel === 'staff' && <StaffManagePage onClose={() => setAdminPanel(null)} />}
+            {adminPanel === 'table-layout' && <TableLayoutPage onClose={() => setAdminPanel(null)} />}
+          </div>
         </div>
       )}
 

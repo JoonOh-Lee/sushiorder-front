@@ -3,13 +3,27 @@ import { useNavigate } from 'react-router-dom'
 import { clearStaffAuth, getStaffAuth, updateStaffAuthOnDuty, updateStaffAuthStationId } from '../api/staff/auth'
 import { assignMyStation, listStations, setMyDuty, type Station } from '../api/staff/stationApi'
 
+export type AdminPanelKey = 'menu' | 'notice' | 'station' | 'staff' | 'table-layout'
+
 const ROLE_LABEL = { STAFF: '직원', ADMIN: '관리자' }
+
+const ADMIN_ITEMS: { label: string; key: AdminPanelKey; path: string }[] = [
+  { label: '메뉴 관리', key: 'menu', path: '/admin/menu' },
+  { label: '공지사항 관리', key: 'notice', path: '/admin/notice' },
+  { label: '스테이션 관리', key: 'station', path: '/admin/station' },
+  { label: '직원 계정 관리', key: 'staff', path: '/admin/staff' },
+  { label: '매장 배치 설정', key: 'table-layout', path: '/admin/table-layout' },
+]
 
 interface StaffHeaderProps {
   title?: string
+  /** 패널 모드: ← 현황판 닫기 버튼 표시 */
+  onClose?: () => void
+  /** 현황판 모드: 관리 메뉴 클릭 시 navigate 대신 패널 열기 */
+  onOpenPanel?: (key: AdminPanelKey) => void
 }
 
-export function StaffHeader({ title }: StaffHeaderProps) {
+export function StaffHeader({ title, onClose, onOpenPanel }: StaffHeaderProps) {
   const navigate = useNavigate()
   const auth = getStaffAuth()
   const [onDuty, setOnDutyState] = useState(auth?.onDuty ?? false)
@@ -82,45 +96,55 @@ export function StaffHeader({ title }: StaffHeaderProps) {
         </div>
       )}
 
-      {/* 스테이션 뱃지 */}
-      <div className="relative">
+      {/* 왼쪽: 패널 모드 = 닫기 버튼 / 현황판 모드 = 스테이션 뱃지 */}
+      {onClose ? (
         <button
           type="button"
-          onClick={() => { setShowStationMenu((p) => !p); setShowMainMenu(false) }}
-          className="flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1.5 text-[11px] font-semibold text-white/90 transition-colors hover:bg-white/25 active:bg-white/30"
+          onClick={onClose}
+          className="flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5 text-[11px] font-semibold text-white/90 transition-colors hover:bg-white/25 active:bg-white/30"
         >
-          {stationName(auth.stationId)}
-          <span className={`text-[10px] opacity-60 transition-transform duration-150 ${showStationMenu ? 'rotate-180' : ''}`}>
-            ▾
-          </span>
+          ← 현황판
         </button>
+      ) : (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => { setShowStationMenu((p) => !p); setShowMainMenu(false) }}
+            className="flex items-center gap-1 rounded-lg bg-white/15 px-2.5 py-1.5 text-[11px] font-semibold text-white/90 transition-colors hover:bg-white/25 active:bg-white/30"
+          >
+            {stationName(auth.stationId)}
+            <span className={`text-[10px] opacity-60 transition-transform duration-150 ${showStationMenu ? 'rotate-180' : ''}`}>
+              ▾
+            </span>
+          </button>
 
-        {showStationMenu && (
-          <>
-            <div className="fixed inset-0 z-10" onClick={() => setShowStationMenu(false)} />
-            <div className="absolute left-0 top-10 z-20 w-48 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
-              <p className="px-4 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted">
-                스테이션 변경
-              </p>
-              {stations.filter((s) => s.active).map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  disabled={assigningId !== null}
-                  onClick={() => handleAssignStation(s.id)}
-                  className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-primary-50 disabled:opacity-40 ${
-                    s.id === auth.stationId ? 'font-bold text-primary-600' : 'font-medium'
-                  }`}
-                >
-                  <span>{s.name}</span>
-                  {s.id === auth.stationId && <span className="text-xs text-primary-400">현재</span>}
-                  {assigningId === s.id && <span className="text-xs text-muted">변경중...</span>}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+          {showStationMenu && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowStationMenu(false)} />
+              <div className="absolute left-0 top-10 z-20 w-48 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
+                <p className="px-4 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+                  스테이션 변경
+                </p>
+                {stations.filter((s) => s.active).map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    disabled={assigningId !== null}
+                    onClick={() => handleAssignStation(s.id)}
+                    className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-primary-50 disabled:opacity-40 ${
+                      s.id === auth.stationId ? 'font-bold text-primary-600' : 'font-medium'
+                    }`}
+                  >
+                    <span>{s.name}</span>
+                    {s.id === auth.stationId && <span className="text-xs text-primary-400">현재</span>}
+                    {assigningId === s.id && <span className="text-xs text-muted">변경중...</span>}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* 페이지 타이틀 */}
       {title && (
@@ -166,22 +190,23 @@ export function StaffHeader({ title }: StaffHeaderProps) {
                 </span>
               </button>
 
-              {/* 관리자 메뉴 */}
-              {auth.role === 'ADMIN' && (
+              {/* 관리자 메뉴 (패널 모드에서는 숨김) */}
+              {auth.role === 'ADMIN' && !onClose && (
                 <>
                   <div className="border-t border-primary-100" />
                   <p className="px-4 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted">관리자</p>
-                  {[
-                    { label: '메뉴 관리', path: '/admin/menu' },
-                    { label: '공지사항 관리', path: '/admin/notice' },
-                    { label: '스테이션 관리', path: '/admin/station' },
-                    { label: '직원 계정 관리', path: '/admin/staff' },
-                    { label: '매장 배치 설정', path: '/admin/table-layout' },
-                  ].map(({ label, path }) => (
+                  {ADMIN_ITEMS.map(({ label, key, path }) => (
                     <button
-                      key={path}
+                      key={key}
                       type="button"
-                      onClick={() => { closeAll(); navigate(path) }}
+                      onClick={() => {
+                        closeAll()
+                        if (onOpenPanel) {
+                          onOpenPanel(key)
+                        } else {
+                          navigate(path)
+                        }
+                      }}
                       className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
                     >
                       {label}
