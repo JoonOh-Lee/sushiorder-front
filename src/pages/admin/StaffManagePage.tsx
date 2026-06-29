@@ -260,7 +260,7 @@ function ModalButtons({
 }
 
 // ── 메인 페이지 ──────────────────────────────────────────────────────────────
-function StaffManagePage() {
+function StaffManagePage({ onClose }: { onClose?: () => void }) {
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -272,7 +272,7 @@ function StaffManagePage() {
 
   useEffect(() => {
     const auth = getStaffAuth()
-    if (!auth || auth.role !== 'ADMIN') {
+    if (!onClose && (!auth || auth.role !== 'ADMIN')) {
       navigate('/staff')
       return
     }
@@ -331,8 +331,8 @@ function StaffManagePage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
-      <StaffHeader title="직원 계정 관리" />
+    <div className={onClose ? 'h-full overflow-auto bg-surface' : 'min-h-screen bg-surface'}>
+      <StaffHeader title="직원 계정 관리" onClose={onClose} />
 
       {actionError && (
         <p className="bg-red-50 px-4 py-2 text-center text-sm text-red-600">{actionError}</p>

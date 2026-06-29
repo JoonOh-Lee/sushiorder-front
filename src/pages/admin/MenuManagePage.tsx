@@ -403,7 +403,7 @@ function ActiveToggle({
 }
 
 // ── 메인 페이지 ─────────────────────────────────────────────────────────────
-function MenuManagePage() {
+function MenuManagePage({ onClose }: { onClose?: () => void }) {
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('loading')
   const [loadError, setLoadError] = useState('')
@@ -419,8 +419,10 @@ function MenuManagePage() {
 
   useEffect(() => {
     const auth = getStaffAuth()
-    if (!auth) { navigate('/staff/login'); return }
-    if (auth.role !== 'ADMIN') { navigate('/staff'); return }
+    if (!onClose) {
+      if (!auth) { navigate('/staff/login'); return }
+      if (auth.role !== 'ADMIN') { navigate('/staff'); return }
+    }
 
     Promise.all([listAllMenus(), listStations()])
       .then(([ms, ss]) => {
@@ -494,9 +496,9 @@ function MenuManagePage() {
   const inactiveCount = filtered.length - activeCount
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className={onClose ? 'h-full overflow-auto bg-surface' : 'min-h-screen bg-surface'}>
       {/* 헤더 */}
-      <StaffHeader title="메뉴 관리" />
+      <StaffHeader title="메뉴 관리" onClose={onClose} />
 
       {/* 검색 + 카테고리 탭 (sticky) */}
       <div className="sticky top-0 z-10 border-b border-primary-100 bg-surface px-4 pt-2.5">
