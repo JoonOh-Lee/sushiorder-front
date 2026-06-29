@@ -40,13 +40,22 @@ function NoticeFormModal({ notice, onCancel, onSave }: NoticeFormModalProps) {
     const input: NoticeInput = { title: title.trim(), content: content.trim() }
     setSaving(true)
     setError('')
-    const req = notice ? updateNotice(notice.id, input) : createNotice(input)
-    req
-      .then((saved) => onSave(saved))
-      .catch((err: unknown) => {
-        setError(err instanceof ApiError ? err.message : '저장에 실패했습니다.')
-        setSaving(false)
-      })
+
+    if (notice) {
+      updateNotice(notice.id, input)
+        .then(() => onSave({ ...notice, title: input.title, content: input.content }))
+        .catch((err: unknown) => {
+          setError(err instanceof ApiError ? err.message : '저장에 실패했습니다.')
+          setSaving(false)
+        })
+    } else {
+      createNotice(input)
+        .then((saved) => onSave(saved))
+        .catch((err: unknown) => {
+          setError(err instanceof ApiError ? err.message : '저장에 실패했습니다.')
+          setSaving(false)
+        })
+    }
   }
 
   return (
@@ -155,8 +164,10 @@ function NoticeManagePage() {
     setProcessingId(notice.id)
     const req = notice.pinned ? unpinNotice(notice.id) : pinNotice(notice.id)
     req
-      .then((updated) =>
-        setNotices((prev) => sortNotices(prev.map((n) => (n.id === updated.id ? updated : n)))),
+      .then(() =>
+        setNotices((prev) =>
+          sortNotices(prev.map((n) => (n.id === notice.id ? { ...n, pinned: !n.pinned } : n))),
+        ),
       )
       .catch((err: unknown) => setActionError(err instanceof ApiError ? err.message : '처리에 실패했습니다.'))
       .finally(() => setProcessingId(null))
@@ -166,8 +177,10 @@ function NoticeManagePage() {
     setProcessingId(notice.id)
     const req = notice.active ? deactivateNotice(notice.id) : activateNotice(notice.id)
     req
-      .then((updated) =>
-        setNotices((prev) => sortNotices(prev.map((n) => (n.id === updated.id ? updated : n)))),
+      .then(() =>
+        setNotices((prev) =>
+          sortNotices(prev.map((n) => (n.id === notice.id ? { ...n, active: !n.active } : n))),
+        ),
       )
       .catch((err: unknown) => setActionError(err instanceof ApiError ? err.message : '처리에 실패했습니다.'))
       .finally(() => setProcessingId(null))
