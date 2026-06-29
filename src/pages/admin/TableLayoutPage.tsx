@@ -799,7 +799,7 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
             <button
               type="button"
               onClick={() => setFabOpen((p) => !p)}
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-xl text-white shadow-lg transition-transform duration-200 active:scale-90"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-700 text-xl text-white shadow-lg transition-transform duration-200 active:scale-90"
               aria-label="레일 설정"
             >
               {fabOpen ? '✕' : '⚙'}
