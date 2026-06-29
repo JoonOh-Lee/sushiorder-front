@@ -434,7 +434,7 @@ function StaffManagePage({ onClose }: { onClose?: () => void }) {
       <button
         type="button"
         onClick={() => setModal({ type: 'new' })}
-        className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-2xl text-white shadow-lg transition-transform active:scale-90"
+        className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-gray-700 text-2xl text-white shadow-lg transition-transform active:scale-90"
         aria-label="직원 추가"
       >
         +
