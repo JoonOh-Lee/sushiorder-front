@@ -248,7 +248,8 @@ function FloorBoardPage() {
   const [coveringStationIds, setCoveringStationIds] = useState<number[]>(() => (auth ? loadCoveringStationIds(auth.username) : []))
   const [processingKey, setProcessingKey] = useState<string | null>(null)
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null)
-  const [showMenu, setShowMenu] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showAdminMenu, setShowAdminMenu] = useState(false)
   const [showListModal, setShowListModal] = useState(false)
   const [railDirection] = useState<RailDirection>(
     () => (localStorage.getItem(RAIL_DIRECTION_KEY) as RailDirection | null) ?? 'cw',
@@ -427,89 +428,46 @@ function FloorBoardPage() {
   return (
     <div className="flex h-screen flex-col bg-surface">
       <header className="flex items-center justify-between bg-primary-500 px-4 py-2.5 text-white">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold">
-            {auth.username} · {ROLE_LABEL[auth.role]} · {stationNameFor(auth.stationId)}
-          </p>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${onDuty ? 'bg-green-400 text-white' : 'bg-white/25 text-white'}`}>
-            {onDuty ? '근무 중' : 'OFF'}
-          </span>
-        </div>
+        {/* 유저 정보 — 클릭 시 개인 메뉴 */}
         <div className="relative">
           <button
             type="button"
-            onClick={() => setShowMenu((prev) => !prev)}
-            aria-label="설정"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-base transition-transform active:scale-90"
+            onClick={() => { setShowUserMenu((p) => !p); setShowAdminMenu(false) }}
+            className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-1.5 transition-colors hover:bg-white/25 active:bg-white/30"
           >
-            ⚙
+            <div className="text-left">
+              <p className="text-sm font-bold leading-tight">{auth.username}</p>
+              <p className="text-[11px] leading-tight opacity-80">
+                {ROLE_LABEL[auth.role]} · {stationNameFor(auth.stationId)}
+              </p>
+            </div>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${onDuty ? 'bg-green-400 text-white' : 'bg-white/25 text-white'}`}>
+              {onDuty ? '근무 중' : 'OFF'}
+            </span>
+            <span className={`text-xs opacity-70 transition-transform duration-150 ${showUserMenu ? 'rotate-180' : ''}`}>▾</span>
           </button>
-          {showMenu && (
+
+          {showUserMenu && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
+              <div className="fixed inset-0 z-10" onClick={() => setShowUserMenu(false)} />
+              <div className="absolute left-0 top-12 z-20 w-44 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
                 <button
                   type="button"
-                  onClick={handleToggleDuty}
+                  onClick={() => { setShowUserMenu(false); handleToggleDuty() }}
                   className={`block w-full px-4 py-3 text-left text-sm font-semibold ${onDuty ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
                 >
                   {onDuty ? '근무 종료' : '근무 시작'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowMenu(false)
-                    navigate('/staff/station')
-                  }}
+                  onClick={() => { setShowUserMenu(false); navigate('/staff/station') }}
                   className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
                 >
                   스테이션 변경
                 </button>
-                {auth.role === 'ADMIN' && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/menu') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      메뉴 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/notice') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      공지사항 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/station') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      스테이션 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/staff') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      직원 계정 관리
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowMenu(false); navigate('/admin/table-layout') }}
-                      className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
-                    >
-                      매장 배치 설정
-                    </button>
-                  </>
-                )}
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowMenu(false)
-                    handleLogout()
-                  }}
+                  onClick={() => { setShowUserMenu(false); handleLogout() }}
                   className="block w-full px-4 py-3 text-left text-sm font-medium text-red-600 hover:bg-red-50"
                 >
                   로그아웃
@@ -518,6 +476,63 @@ function FloorBoardPage() {
             </>
           )}
         </div>
+
+        {/* 관리자 전용 ⚙ */}
+        {auth.role === 'ADMIN' && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { setShowAdminMenu((p) => !p); setShowUserMenu(false) }}
+              aria-label="관리 메뉴"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-base transition-transform active:scale-90"
+            >
+              ⚙
+            </button>
+            {showAdminMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowAdminMenu(false)} />
+                <div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-xl bg-surface-raised text-ink shadow-lg">
+                  <p className="px-4 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted">관리자</p>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAdminMenu(false); navigate('/admin/menu') }}
+                    className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
+                  >
+                    메뉴 관리
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAdminMenu(false); navigate('/admin/notice') }}
+                    className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
+                  >
+                    공지사항 관리
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAdminMenu(false); navigate('/admin/station') }}
+                    className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
+                  >
+                    스테이션 관리
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAdminMenu(false); navigate('/admin/staff') }}
+                    className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
+                  >
+                    직원 계정 관리
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAdminMenu(false); navigate('/admin/table-layout') }}
+                    className="block w-full px-4 py-3 text-left text-sm font-medium hover:bg-primary-50"
+                  >
+                    매장 배치 설정
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </header>
 
       {actionError && <p className="bg-red-50 px-4 py-2 text-center text-sm text-red-600">{actionError}</p>}
