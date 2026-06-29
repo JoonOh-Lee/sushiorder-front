@@ -1,5 +1,5 @@
 import type { MenuItem } from '../../customer/menuApi'
-import { MenuThumbnail } from '../../customer/MenuThumbnail'
+import { MenuThumbnail } from '../../components/MenuThumbnail'
 
 interface MenuDetailSheetProps {
   menu: MenuItem | null

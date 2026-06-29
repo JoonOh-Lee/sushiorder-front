@@ -1,4 +1,4 @@
-import { staffFetch } from '../api/staffApi'
+import { staffFetch } from '../staffApi'
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'
 
