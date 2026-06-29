@@ -1,5 +1,5 @@
-import { staffFetch } from '../api/staffApi'
-import type { FloorPlanElement, FloorPlanElementType } from './floorPlanElementApi'
+import { staffFetch } from '../../staffApi'
+import type { FloorPlanElement, FloorPlanElementType } from '../floorPlanElementApi'
 
 export interface FloorPlanElementCreateInput {
   type: FloorPlanElementType

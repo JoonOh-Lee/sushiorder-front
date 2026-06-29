@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ApiError } from '../../api/types'
 import { callStaff, type CallType } from '../../customer/callApi'
-import { BellIcon } from '../../customer/icons'
+import { BellIcon } from '../../components/icons'
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 

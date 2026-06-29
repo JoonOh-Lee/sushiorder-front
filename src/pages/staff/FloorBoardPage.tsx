@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/types'
-import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../auth/floorPlanElementApi'
-import { listRailSegments, type RailSegment } from '../../auth/railSegmentApi'
-import { listStations, setMyDuty, type Station } from '../../auth/stationApi'
-import { clearStaffAuth, getStaffAuth, updateStaffAuthOnDuty, type StaffAuth } from '../../auth/staffAuth'
-import { listStaffCalls, resolveStaffCall, type CallType, type StaffCall } from '../../auth/staffCallApi'
+import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../api/staff/floorPlanElementApi'
+import { listRailSegments, type RailSegment } from '../../api/staff/railSegmentApi'
+import { listStations, setMyDuty, type Station } from '../../api/staff/stationApi'
+import { clearStaffAuth, getStaffAuth, updateStaffAuthOnDuty, type StaffAuth } from '../../api/staff/auth'
+import { listStaffCalls, resolveStaffCall, type CallType, type StaffCall } from '../../api/staff/callApi'
 import {
   cancelStationItems,
   completeStationItems,
@@ -13,8 +13,9 @@ import {
   listAllActiveOrders,
   type Order,
   type OrderStatus,
-} from '../../auth/staffOrderApi'
-import { listTables, type RestaurantTable } from '../../auth/tableApi'
+} from '../../api/staff/orderApi'
+import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
+import { formatTime } from '../../utils/format'
 import ConveyorRail from '../../staff/ConveyorRail'
 import { formatSeatLabel } from '../../staff/seatLabel'
 
@@ -92,7 +93,7 @@ function CallCard({ call, processing, onResolve, tableLabel }: CallCardProps) {
             {tableLabel ?? '호출'}
           </span>
           <span className="text-sm text-muted">
-            {new Date(call.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+            {formatTime(call.createdAt)}
           </span>
         </div>
         <p className="mt-1.5 text-lg font-bold text-ink">
@@ -134,7 +135,7 @@ function OrderCard({ order, stationId, processing, onAction, tableLabel, readOnl
           <span className="rounded-full bg-accent-400 px-2.5 py-1 text-xs font-semibold text-white">{tableLabel}</span>
         )}
         <span className="text-sm text-muted">
-          {new Date(order.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+          {formatTime(order.createdAt)}
         </span>
       </div>
 
@@ -213,7 +214,7 @@ function ReadOnlyOrderSummary({ order, tableLabel }: { order: Order; tableLabel?
           <span className="rounded-full bg-accent-400 px-2.5 py-1 text-xs font-semibold text-white">{tableLabel}</span>
         )}
         <span className="text-sm text-muted">
-          {new Date(order.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+          {formatTime(order.createdAt)}
         </span>
       </div>
       <ul className="mt-3 grid gap-1">

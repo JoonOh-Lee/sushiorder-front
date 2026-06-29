@@ -1,4 +1,4 @@
-import { staffFetch } from '../api/staffApi'
+import { staffFetch } from '../staffApi'
 
 export interface RailSegment {
   id: number
