@@ -229,7 +229,7 @@ function FixtureCreateModal({
   )
 }
 
-function TableLayoutPage() {
+function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   const navigate = useNavigate()
   const canvasRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<Status>('loading')
@@ -255,7 +255,7 @@ function TableLayoutPage() {
       navigate('/staff/login')
       return
     }
-    if (auth.role !== 'ADMIN') {
+    if (!onClose && auth.role !== 'ADMIN') {
       navigate('/staff')
       return
     }
@@ -541,8 +541,8 @@ function TableLayoutPage() {
     : null
 
   return (
-    <div className="flex h-screen flex-col bg-surface">
-      <StaffHeader title="매장 배치 설정" />
+    <div className={`flex ${onClose ? 'h-full' : 'h-screen'} flex-col bg-surface`}>
+      <StaffHeader title="매장 배치 설정" onClose={onClose} />
 
       {errorMessage && (
         <p className="shrink-0 bg-red-50 px-4 py-2 text-center text-sm text-red-600">{errorMessage}</p>
