@@ -111,7 +111,7 @@ function NoticeFormModal({ notice, onCancel, onSave }: NoticeFormModalProps) {
   )
 }
 
-function NoticeManagePage() {
+function NoticeManagePage({ onClose }: { onClose?: () => void }) {
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -122,7 +122,7 @@ function NoticeManagePage() {
 
   useEffect(() => {
     const auth = getStaffAuth()
-    if (!auth || auth.role !== 'ADMIN') {
+    if (!onClose && (!auth || auth.role !== 'ADMIN')) {
       navigate('/staff')
       return
     }
@@ -188,8 +188,8 @@ function NoticeManagePage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
-      <StaffHeader title="공지사항 관리" />
+    <div className={onClose ? 'h-full overflow-auto bg-surface' : 'min-h-screen bg-surface'}>
+      <StaffHeader title="공지사항 관리" onClose={onClose} />
 
       {actionError && (
         <p className="bg-red-50 px-4 py-2 text-center text-sm text-red-600">{actionError}</p>
