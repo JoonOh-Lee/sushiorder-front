@@ -1,5 +1,5 @@
-import { staffFetch } from '../api/staffApi'
-import type { StaffRole } from './staffAuth'
+import { staffFetch } from '../staffApi'
+import type { StaffRole } from './auth'
 
 export interface Station {
   id: number

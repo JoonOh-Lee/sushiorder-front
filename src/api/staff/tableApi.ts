@@ -1,4 +1,4 @@
-import { staffFetch } from '../api/staffApi'
+import { staffFetch } from '../staffApi'
 
 export type SeatType = 'TABLE' | 'COUNTER'
 export type TableStatus = 'EMPTY' | 'OCCUPIED' | 'RESERVED'
