@@ -11,6 +11,7 @@ import { fetchTableQrBlobUrl, updateTablePosition } from '../../api/staff/admin/
 import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../api/staff/floorPlanElementApi'
 import { listRailSegments, type RailSegment } from '../../api/staff/railSegmentApi'
 import { getStaffAuth } from '../../api/staff/auth'
+import { StaffHeader } from '../../components/StaffHeader'
 import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
 import ConveyorRail from '../../staff/ConveyorRail'
 import { computeBeltGeo, computeEffectiveActiveIds, computeReorderFromPositions } from '../../staff/railGeometry'
@@ -228,7 +229,7 @@ function FixtureCreateModal({
   )
 }
 
-function TableLayoutPage() {
+function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   const navigate = useNavigate()
   const canvasRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<Status>('loading')
@@ -247,6 +248,7 @@ function TableLayoutPage() {
   const [qrBlobUrl, setQrBlobUrl] = useState<string | null>(null)
   const [qrLoading, setQrLoading] = useState(false)
   const [reordering, setReordering] = useState(false)
+  const [fabOpen, setFabOpen] = useState(false)
 
   useEffect(() => {
     const auth = getStaffAuth()
@@ -254,7 +256,7 @@ function TableLayoutPage() {
       navigate('/staff/login')
       return
     }
-    if (auth.role !== 'ADMIN') {
+    if (!onClose && auth.role !== 'ADMIN') {
       navigate('/staff')
       return
     }
@@ -540,34 +542,8 @@ function TableLayoutPage() {
     : null
 
   return (
-    <div className="flex h-screen flex-col bg-surface">
-      <header className="flex shrink-0 items-center gap-3 bg-primary-500 px-4 py-2.5 text-white">
-        <button
-          type="button"
-          onClick={() => navigate('/staff')}
-          aria-label="뒤로"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-xl transition-transform active:scale-90"
-        >
-          ←
-        </button>
-        <h1 className="text-xl font-bold">매장 배치 설정</h1>
-        <div className="ml-auto flex rounded-full bg-white/15 p-0.5 text-sm font-semibold">
-          <button
-            type="button"
-            onClick={() => handleSwitchMode('layout')}
-            className={`rounded-full px-4 py-1 transition-colors ${mode === 'layout' ? 'bg-white/30' : ''}`}
-          >
-            배치
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSwitchMode('rail')}
-            className={`rounded-full px-4 py-1 transition-colors ${mode === 'rail' ? 'bg-white/30' : ''}`}
-          >
-            레일
-          </button>
-        </div>
-      </header>
+    <div className={`flex ${onClose ? 'h-full' : 'h-screen'} flex-col bg-surface`}>
+      <StaffHeader title="매장 배치 설정" onClose={onClose} />
 
       {errorMessage && (
         <p className="shrink-0 bg-red-50 px-4 py-2 text-center text-sm text-red-600">{errorMessage}</p>
@@ -576,6 +552,23 @@ function TableLayoutPage() {
       {/* FloorBoardPage의 legend bar와 동일한 높이/구조 — 캔버스 좌표계 맞춤 */}
       {status === 'ready' && (
         <div className="flex shrink-0 items-center gap-3 border-b border-primary-100 bg-surface-raised px-3 py-1.5 text-[11px] text-muted">
+          {/* 배치/레일 탭 */}
+          <div className="flex rounded-full bg-ink/8 p-0.5 text-[11px] font-semibold">
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('layout')}
+              className={`rounded-full px-3 py-0.5 transition-colors ${mode === 'layout' ? 'bg-primary-500 text-white' : 'text-ink'}`}
+            >
+              배치
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSwitchMode('rail')}
+              className={`rounded-full px-3 py-0.5 transition-colors ${mode === 'rail' ? 'bg-primary-500 text-white' : 'text-ink'}`}
+            >
+              레일
+            </button>
+          </div>
           {mode === 'layout' ? (
             <>
               <span className="flex items-center gap-1">
@@ -593,30 +586,6 @@ function TableLayoutPage() {
               </span>
               <span className="flex items-center gap-1">
                 <span className="h-2.5 w-2.5 rounded-full bg-ink/15" /> 비활성
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  setRailDirection((d) => {
-                    const next = d === 'cw' ? 'ccw' : 'cw'
-                    localStorage.setItem(RAIL_DIRECTION_KEY, next)
-                    return next
-                  })
-                }
-                className="ml-auto flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-0.5 font-semibold text-primary-600 transition-colors active:bg-primary-100"
-              >
-                {railDirection === 'cw' ? '↻ 시계방향' : '↺ 반시계방향'}
-              </button>
-              <button
-                type="button"
-                onClick={handleReorderSegments}
-                disabled={reordering}
-                className="flex items-center gap-1 rounded-full bg-ink/8 px-2.5 py-0.5 font-semibold text-ink transition-colors active:bg-ink/15 disabled:opacity-50"
-              >
-                {reordering ? '재정렬 중...' : '순서 재정렬'}
-              </button>
-              <span className="font-semibold text-ink">
-                {railSegments.filter((s) => s.active).length}/{railSegments.length} 구간 활성
               </span>
             </>
           )}
@@ -777,14 +746,6 @@ function TableLayoutPage() {
             </div>
           )}
 
-          {mode === 'rail' && (
-            <p className="text-center text-sm text-muted">
-              테이블을 탭하여 직전 구간의 레일을 켜거나 끄세요 ·{' '}
-              <span className="font-semibold text-ink">
-                {railSegments.filter((s) => s.active).length}/{railSegments.length} 활성
-              </span>
-            </p>
-          )}
         </div>
       )}
 
@@ -795,6 +756,56 @@ function TableLayoutPage() {
         >
           {drag.label}
         </div>
+      )}
+
+      {/* 레일 모드 FAB (방향 전환 · 순서 재정렬) */}
+      {mode === 'rail' && (
+        <>
+          {fabOpen && (
+            <div className="fixed inset-0 z-20" onClick={() => setFabOpen(false)} />
+          )}
+          <div className="fixed bottom-6 right-6 z-30 flex flex-col items-end gap-2">
+            {/* 확장 액션 */}
+            <div
+              className={`flex flex-col items-end gap-2 transition-all duration-200 ${
+                fabOpen ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-4 opacity-0'
+              }`}
+            >
+              <button
+                type="button"
+                disabled={reordering}
+                onClick={() => { handleReorderSegments(); setFabOpen(false) }}
+                className="flex items-center gap-2 rounded-full bg-surface-raised px-4 py-2.5 text-sm font-semibold text-ink shadow-lg disabled:opacity-50"
+              >
+                {reordering ? '재정렬 중...' : '순서 재정렬'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRailDirection((d) => {
+                    const next = d === 'cw' ? 'ccw' : 'cw'
+                    localStorage.setItem(RAIL_DIRECTION_KEY, next)
+                    return next
+                  })
+                  setFabOpen(false)
+                }}
+                className="flex items-center gap-2 rounded-full bg-surface-raised px-4 py-2.5 text-sm font-semibold text-ink shadow-lg"
+              >
+                {railDirection === 'cw' ? '↻ 시계방향' : '↺ 반시계방향'}
+              </button>
+            </div>
+
+            {/* 메인 FAB */}
+            <button
+              type="button"
+              onClick={() => setFabOpen((p) => !p)}
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-700 text-xl text-white shadow-lg transition-transform duration-200 active:scale-90"
+              aria-label="레일 설정"
+            >
+              {fabOpen ? '✕' : '⚙'}
+            </button>
+          </div>
+        </>
       )}
 
       {showCreateModal && (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/types'
+import { StaffHeader } from '../../components/StaffHeader'
 import {
   activateNotice,
   createNotice,
@@ -110,7 +111,7 @@ function NoticeFormModal({ notice, onCancel, onSave }: NoticeFormModalProps) {
   )
 }
 
-function NoticeManagePage() {
+function NoticeManagePage({ onClose }: { onClose?: () => void }) {
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -121,7 +122,7 @@ function NoticeManagePage() {
 
   useEffect(() => {
     const auth = getStaffAuth()
-    if (!auth || auth.role !== 'ADMIN') {
+    if (!onClose && (!auth || auth.role !== 'ADMIN')) {
       navigate('/staff')
       return
     }
@@ -187,26 +188,8 @@ function NoticeManagePage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
-      <header className="bg-primary-500 px-4 py-2.5 text-white">
-        <div className="mx-auto flex max-w-3xl items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/staff')}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-xl transition-transform active:scale-90"
-          >
-            ←
-          </button>
-          <h1 className="flex-1 text-xl font-bold">공지사항 관리</h1>
-          <button
-            type="button"
-            onClick={() => setEditTarget('new')}
-            className="rounded-full bg-white/20 px-4 py-1.5 text-sm font-semibold"
-          >
-            + 추가
-          </button>
-        </div>
-      </header>
+    <div className={onClose ? 'h-full overflow-auto bg-surface' : 'min-h-screen bg-surface'}>
+      <StaffHeader title="공지사항 관리" onClose={onClose} />
 
       {actionError && (
         <p className="bg-red-50 px-4 py-2 text-center text-sm text-red-600">{actionError}</p>
@@ -303,6 +286,16 @@ function NoticeManagePage() {
           </ul>
         )}
       </div>
+
+      {/* FAB */}
+      <button
+        type="button"
+        onClick={() => setEditTarget('new')}
+        className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-gray-700 text-2xl text-white shadow-lg transition-transform active:scale-90"
+        aria-label="공지 추가"
+      >
+        +
+      </button>
 
       {editTarget !== null && (
         <NoticeFormModal
