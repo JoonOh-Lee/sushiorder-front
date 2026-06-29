@@ -1,6 +1,6 @@
-import { ApiError, type ApiResponse } from './types'
+import { ApiError, UnauthorizedError, type ApiResponse } from './types'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 
 export interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown
@@ -19,6 +19,10 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   })
 
   const json: ApiResponse<T> = await res.json()
+
+  if (res.status === 401) {
+    throw new UnauthorizedError(json.message ?? '인증이 필요합니다.')
+  }
 
   if (!json.success) {
     throw new ApiError(json.message ?? '요청에 실패했습니다.')

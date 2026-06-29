@@ -543,7 +543,7 @@ function MenuManagePage() {
   return (
     <div className="min-h-screen bg-surface">
       {/* 헤더 */}
-      <header className="bg-primary-500 px-4 pb-3 pt-5 text-white">
+      <header className="bg-primary-500 px-4 py-2.5 text-white">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <button
             type="button"
@@ -553,12 +553,7 @@ function MenuManagePage() {
           >
             ←
           </button>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold">메뉴 관리</h1>
-            <p className="mt-0.5 text-xs opacity-70">
-              전체 {menus.length}개 · 활성 {menus.filter((m) => m.active).length}개
-            </p>
-          </div>
+          <h1 className="flex-1 text-xl font-bold">메뉴 관리</h1>
           <button
             type="button"
             onClick={() => setShowCreate(true)}
@@ -567,34 +562,32 @@ function MenuManagePage() {
             + 추가
           </button>
         </div>
+      </header>
 
-        {/* 검색 */}
-        <div className="mx-auto mt-3 max-w-3xl">
-          <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2">
-            <span className="text-sm opacity-60">🔍</span>
+      {/* 검색 + 카테고리 탭 (sticky) */}
+      <div className="sticky top-0 z-10 border-b border-primary-100 bg-surface px-4 pt-2.5">
+        <div className="mx-auto max-w-3xl">
+          <div className="flex items-center gap-2 rounded-xl border border-primary-100 bg-surface-raised px-3 py-2">
+            <span className="text-sm text-muted">🔍</span>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="메뉴 이름 검색"
-              className="flex-1 bg-transparent text-sm text-white placeholder-white/50 outline-none"
+              className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="text-sm opacity-60 hover:opacity-100"
+                className="text-sm text-muted hover:text-ink"
               >
                 ✕
               </button>
             )}
           </div>
         </div>
-      </header>
-
-      {/* 카테고리 탭 */}
-      <div className="sticky top-0 z-10 border-b border-primary-100 bg-surface px-4 pt-3">
         <div
-          className="mx-auto flex max-w-3xl gap-1.5 overflow-x-auto pb-3"
+          className="mx-auto flex max-w-3xl gap-1.5 overflow-x-auto pb-3 pt-2"
           style={{ scrollbarWidth: 'none' }}
         >
           {categories.map((cat) => {
