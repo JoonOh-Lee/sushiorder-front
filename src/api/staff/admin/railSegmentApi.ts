@@ -1,5 +1,5 @@
-import { staffFetch } from '../api/staffApi'
-import type { RailSegment } from './railSegmentApi'
+import { staffFetch } from '../../staffApi'
+import type { RailSegment } from '../railSegmentApi'
 
 export function activateRailSegment(id: number): Promise<RailSegment> {
   return staffFetch<RailSegment>(`/api/v1/admin/rail-segment/${id}/activate`, { method: 'PATCH' })
