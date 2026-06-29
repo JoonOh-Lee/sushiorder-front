@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { StaffHeader } from '../../components/StaffHeader'
 import { ApiError } from '../../api/types'
 import {
   activateMenu,
@@ -495,26 +496,7 @@ function MenuManagePage() {
   return (
     <div className="min-h-screen bg-surface">
       {/* 헤더 */}
-      <header className="bg-primary-500 px-4 py-2.5 text-white">
-        <div className="mx-auto flex max-w-3xl items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/staff')}
-            aria-label="뒤로"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg transition-transform active:scale-90 hover:bg-white/10"
-          >
-            ←
-          </button>
-          <h1 className="flex-1 text-xl font-bold">메뉴 관리</h1>
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            className="shrink-0 rounded-full bg-white/20 px-4 py-2 text-sm font-semibold transition-colors hover:bg-white/30 active:scale-95"
-          >
-            + 추가
-          </button>
-        </div>
-      </header>
+      <StaffHeader title="메뉴 관리" />
 
       {/* 검색 + 카테고리 탭 (sticky) */}
       <div className="sticky top-0 z-10 border-b border-primary-100 bg-surface px-4 pt-2.5">
@@ -689,6 +671,16 @@ function MenuManagePage() {
           </div>
         </div>
       )}
+
+      {/* FAB */}
+      <button
+        type="button"
+        onClick={() => setShowCreate(true)}
+        className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-2xl text-white shadow-lg transition-transform active:scale-90"
+        aria-label="메뉴 추가"
+      >
+        +
+      </button>
 
       {/* 생성 모달 */}
       {showCreate && (
