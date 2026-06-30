@@ -150,15 +150,12 @@ function OrderEntryPage() {
             entries={cartEntries}
             onQuantityChange={handleQuantityChange}
             onBack={() => setIsCartOpen(false)}
-            onOrderComplete={() => {
-              setCart({})
-              setIsCartOpen(false)
-            }}
+            onOrderComplete={() => setIsCartOpen(false)}
             onViewOrders={() => {
-              setCart({})
               setIsCartOpen(false)
               setView('orders')
             }}
+            onOrderPlaced={() => setCart({})}
           />
         </div>
       </div>
