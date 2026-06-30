@@ -63,19 +63,20 @@ const BLANK: Record<string, string> = {
 }
 
 function MenuFormModal({ menu, stations, onCancel, onSave }: MenuFormModalProps) {
-  const [form, setForm] = useState<Record<string, string>>(() =>
-    menu
-      ? {
-          name: menu.name,
-          description: menu.description ?? '',
-          price: String(menu.price),
-          category: menu.category,
-          imageUrl: menu.imageUrl ?? '',
-          stockCount: menu.stockCount != null ? String(menu.stockCount) : '',
-          stationId: String(menu.stationId),
-        }
-      : { ...BLANK, stationId: stations[0] ? String(stations[0].id) : '' },
-  )
+  const [form, setForm] = useState<Record<string, string>>((): Record<string, string> => {
+    if (menu) {
+      return {
+        name: menu.name,
+        description: menu.description ?? '',
+        price: String(menu.price),
+        category: menu.category,
+        imageUrl: menu.imageUrl ?? '',
+        stockCount: menu.stockCount != null ? String(menu.stockCount) : '',
+        stationId: String(menu.stationId),
+      }
+    }
+    return { ...BLANK, stationId: stations[0] ? String(stations[0].id) : '' }
+  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 

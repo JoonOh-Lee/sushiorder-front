@@ -50,11 +50,6 @@ const POLL_INTERVAL_MS = 10_000
 const ACTION_ERROR_DISPLAY_MS = 4_000
 const COVERING_STORAGE_PREFIX = 'sushiorder.staff.covering.'
 
-const ROLE_LABEL: Record<StaffAuth['role'], string> = {
-  STAFF: '직원',
-  ADMIN: '관리자',
-}
-
 const CALL_TYPE_LABEL: Record<CallType, string> = {
   WATER_REFILL: '물 리필',
   INQUIRY: '문의',
