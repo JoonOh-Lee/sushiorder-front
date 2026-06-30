@@ -308,7 +308,9 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   }
 
   async function handleSetDeactivationPoint(table: RestaurantTable) {
-    const seg = railSegments.find((s) => s.toTableId === table.id)
+    // fromTableId 기준: 클릭한 테이블에서 나가는 segment를 끊음
+    // → 클릭한 테이블까지는 음식 도달, 이후 테이블부터 미도달
+    const seg = railSegments.find((s) => s.fromTableId === table.id)
     if (!seg || settingCutoff) return
 
     // 현재 DB에서 inactive인 구간 모두 수집 (레거시 상태 포함)
@@ -534,18 +536,22 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   const effectiveActiveSegIds = computeEffectiveActiveIds(railSegments, railDirection)
 
   function railModeTableClass(table: RestaurantTable): string {
-    const seg = railSegments.find((s) => s.toTableId === table.id)
-    if (!seg) return 'bg-ink/10 text-muted cursor-default'
+    const incomingSeg = railSegments.find((s) => s.toTableId === table.id)
+    if (!incomingSeg) return 'bg-ink/10 text-muted cursor-default'
     if (settingCutoff) return 'opacity-50 cursor-wait'
-    if (!seg.active) {
-      // 비활성화 시작점 — 빨간색으로 명확히 표시
-      return 'bg-red-400 text-white ring-2 ring-red-300 cursor-pointer active:scale-95'
+
+    const outgoingSeg = railSegments.find((s) => s.fromTableId === table.id)
+    const foodArrives = effectiveActiveSegIds.has(incomingSeg.id)
+    // 음식이 도달하고 나가는 segment가 컷오프 = 이 테이블이 마지막 도달 지점
+    const isLastActive = foodArrives && outgoingSeg != null && !outgoingSeg.active
+
+    if (isLastActive) {
+      // 마지막 도달 테이블 — 주황색 표시 (클릭 시 클리어)
+      return 'bg-amber-400 text-white ring-2 ring-amber-300 cursor-pointer active:scale-95'
     }
-    if (effectiveActiveSegIds.has(seg.id)) {
-      // 활성 구간 — 음식 도달
+    if (foodArrives) {
       return 'bg-primary-400 text-white cursor-pointer active:scale-95'
     }
-    // 비활성 구간 (컷오프 이후) — 흐리게
     return 'bg-ink/15 text-muted opacity-60 cursor-pointer active:scale-95'
   }
 
@@ -631,12 +637,12 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
                 <span className="h-2.5 w-2.5 rounded-full bg-primary-400" /> 도달
               </span>
               <span className="flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full bg-red-400" /> 비활성 시작
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> 마지막 도달
               </span>
               <span className="flex items-center gap-1">
                 <span className="h-2.5 w-2.5 rounded-full bg-ink/15" /> 미도달
               </span>
-              <span className="ml-auto text-muted">눌러서 시작점 설정</span>
+              <span className="ml-auto text-muted">눌러서 마지막 도달 좌석 설정</span>
             </>
           )}
         </div>
