@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clearStaffAuth, getStaffAuth, updateStaffAuthOnDuty, updateStaffAuthStationId } from '../api/staff/auth'
 import { assignMyStation, listStations, setMyDuty, type Station } from '../api/staff/stationApi'
+import { ApiError } from '../api/types'
 
 export type AdminPanelKey = 'menu' | 'notice' | 'station' | 'staff' | 'table-layout' | 'audit-log'
 
@@ -63,7 +64,9 @@ export function StaffHeader({ title, onClose, onOpenPanel }: StaffHeaderProps) {
         setShowMainMenu(false)
         showToast(next ? '근무를 시작했습니다.' : '근무를 종료했습니다.')
       })
-      .catch(() => {})
+      .catch((err: unknown) => {
+        showToast(err instanceof ApiError ? err.message : '근무 상태 변경에 실패했습니다.')
+      })
   }
 
   function handleAssignStation(stationId: number) {
