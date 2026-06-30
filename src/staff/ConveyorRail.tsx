@@ -90,7 +90,8 @@ function ConveyorRail({ elements, segments, tables, direction = 'cw' }: Conveyor
     if (!fromTable || !toTable) return []
     const t1 = tableToArcT(fromTable, geo)
     const t2 = tableToArcT(toTable, geo)
-    const segLen = t2 > t1 ? t2 - t1 : T_TOTAL - t1 + t2
+    const diff = t2 - t1
+    const segLen = Math.abs(diff) < 0.01 ? 0 : diff > 0 ? diff : T_TOTAL + diff
     if (segLen < 0.01) return []
     return [{ ...seg, effectiveActive: effectiveActiveIds.has(seg.id), t1, segLen }]
   })
