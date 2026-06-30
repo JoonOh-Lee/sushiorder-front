@@ -15,11 +15,12 @@ interface CartPageProps {
   onBack: () => void
   onOrderComplete: () => void
   onViewOrders: () => void
+  onOrderPlaced?: () => void
 }
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
-function CartPage({ entries, onQuantityChange, onBack, onOrderComplete, onViewOrders }: CartPageProps) {
+function CartPage({ entries, onQuantityChange, onBack, onOrderComplete, onViewOrders, onOrderPlaced }: CartPageProps) {
   const [status, setStatus] = useState<Status>('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null)
@@ -34,6 +35,7 @@ function CartPage({ entries, onQuantityChange, onBack, onOrderComplete, onViewOr
       .then((order) => {
         setCompletedOrder(order)
         setStatus('success')
+        onOrderPlaced?.()
       })
       .catch((err: unknown) => {
         setErrorMessage(err instanceof ApiError ? err.message : '주문에 실패했습니다.')
