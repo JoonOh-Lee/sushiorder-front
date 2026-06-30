@@ -237,7 +237,7 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   const [tables, setTables] = useState<RestaurantTable[]>([])
   const [elements, setElements] = useState<FloorPlanElement[]>([])
   const [railSegments, setRailSegments] = useState<RailSegment[]>([])
-  const [togglingSegmentId, setTogglingSegmentId] = useState<number | null>(null)
+  const [settingCutoff, setSettingCutoff] = useState(false)
   const [drag, setDrag] = useState<DragState | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [mode, setMode] = useState<Mode>('layout')
@@ -307,23 +307,40 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
       .finally(() => setReordering(false))
   }
 
-  function handleToggleTableSegment(table: RestaurantTable) {
+  async function handleSetDeactivationPoint(table: RestaurantTable) {
     const seg = railSegments.find((s) => s.toTableId === table.id)
-    if (!seg) return
-    setTogglingSegmentId(seg.id)
-    const action = seg.active ? deactivateRailSegment : activateRailSegment
-    action(seg.id)
-      .then((updated) => {
-        setRailSegments((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
-        setTogglingSegmentId(null)
-      })
-      .catch((err: unknown) => {
-        setErrorMessage(err instanceof ApiError ? err.message : '레일 구간 변경에 실패했습니다.')
-        setTogglingSegmentId(null)
-        listRailSegments()
-          .then(setRailSegments)
-          .catch(() => {})
-      })
+    if (!seg || settingCutoff) return
+
+    // 현재 DB에서 inactive인 구간 모두 수집 (레거시 상태 포함)
+    const inactiveSegs = railSegments.filter((s) => !s.active)
+    // 클릭한 구간이 유일한 비활성 = 현재 컷오프 → 클리어
+    const isOnlyCutoff = inactiveSegs.length === 1 && inactiveSegs[0].id === seg.id
+
+    setSettingCutoff(true)
+    setErrorMessage('')
+
+    try {
+      // 기존 비활성 구간 전부 활성화 (DB를 깨끗한 상태로)
+      if (inactiveSegs.length > 0) {
+        const results = await Promise.all(inactiveSegs.map((s) => activateRailSegment(s.id)))
+        setRailSegments((prev) => {
+          let next = [...prev]
+          for (const r of results) next = next.map((s) => (s.id === r.id ? r : s))
+          return next
+        })
+      }
+
+      // 클리어가 아니면 새 컷오프 지점을 비활성화
+      if (!isOnlyCutoff) {
+        const deactivated = await deactivateRailSegment(seg.id)
+        setRailSegments((prev) => prev.map((s) => (s.id === deactivated.id ? deactivated : s)))
+      }
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof ApiError ? err.message : '레일 구간 변경에 실패했습니다.')
+      listRailSegments().then(setRailSegments).catch(() => {})
+    } finally {
+      setSettingCutoff(false)
+    }
   }
 
   function handleSwitchMode(next: Mode) {
@@ -497,10 +514,17 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   function railModeTableClass(table: RestaurantTable): string {
     const seg = railSegments.find((s) => s.toTableId === table.id)
     if (!seg) return 'bg-ink/10 text-muted cursor-default'
-    if (togglingSegmentId === seg.id) return 'bg-primary-300 text-white animate-pulse cursor-wait'
-    return effectiveActiveSegIds.has(seg.id)
-      ? 'bg-primary-400 text-white cursor-pointer active:scale-95'
-      : 'bg-ink/15 text-muted opacity-60 cursor-pointer active:scale-95'
+    if (settingCutoff) return 'opacity-50 cursor-wait'
+    if (!seg.active) {
+      // 비활성화 시작점 — 빨간색으로 명확히 표시
+      return 'bg-red-400 text-white ring-2 ring-red-300 cursor-pointer active:scale-95'
+    }
+    if (effectiveActiveSegIds.has(seg.id)) {
+      // 활성 구간 — 음식 도달
+      return 'bg-primary-400 text-white cursor-pointer active:scale-95'
+    }
+    // 비활성 구간 (컷오프 이후) — 흐리게
+    return 'bg-ink/15 text-muted opacity-60 cursor-pointer active:scale-95'
   }
 
   const placedTables = tables.filter(
@@ -582,11 +606,15 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
           ) : (
             <>
               <span className="flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full bg-primary-400" /> 활성
+                <span className="h-2.5 w-2.5 rounded-full bg-primary-400" /> 도달
               </span>
               <span className="flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full bg-ink/15" /> 비활성
+                <span className="h-2.5 w-2.5 rounded-full bg-red-400" /> 비활성 시작
               </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-ink/15" /> 미도달
+              </span>
+              <span className="ml-auto text-muted">눌러서 시작점 설정</span>
             </>
           )}
         </div>
@@ -696,8 +724,8 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
                 <button
                   key={`table-${table.id}`}
                   type="button"
-                  disabled={togglingSegmentId !== null}
-                  onClick={() => handleToggleTableSegment(table)}
+                  disabled={settingCutoff}
+                  onClick={() => handleSetDeactivationPoint(table)}
                   className={`absolute flex items-center justify-center rounded-lg text-xs font-semibold shadow-sm transition-opacity ${railModeTableClass(table)}`}
                   style={{
                     left: `${table.x}%`,
