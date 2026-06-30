@@ -423,7 +423,18 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
       if (activeDrag.kind === 'table') {
         updateTablePosition(activeDrag.id, position)
           .then((updated) => {
-            setTables((prev) => prev.map((table) => (table.id === updated.id ? updated : table)))
+            const nextTables = tables.map((t) => (t.id === updated.id ? updated : t))
+            setTables(nextTables)
+            // 테이블 위치 변경 후 레일 sequenceOrder 자동 재계산
+            if (railSegments.length > 0) {
+              const geo = computeBeltGeo(elements, nextTables)
+              if (geo) {
+                const orders = computeReorderFromPositions(railSegments, nextTables, geo)
+                reorderRailSegments(orders)
+                  .then(() => listRailSegments().then(setRailSegments))
+                  .catch(() => {})
+              }
+            }
           })
           .catch((err: unknown) => {
             setErrorMessage(err instanceof ApiError ? err.message : '위치 저장에 실패했습니다.')
