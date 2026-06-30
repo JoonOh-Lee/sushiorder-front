@@ -10,6 +10,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **손님용**: 테이블 QR을 스캔해서 열리는 주문 페이지. 인증 없이 접근, QR 세션 토큰으로 식별.
 - **직원용**: 매장에 고정된 공유기기(공기계)에서 username/password로 로그인해 쓰는 관리 화면. 일용직이 매일 바뀔 수 있어서 사람이 아니라 "그날 로그인한 사람 + 본인이 지정한 station"으로 동작한다. 직원 1인당 QR/개인폰 로그인은 의도적으로 채택하지 않음 — 손님 QR 세션과 다른 인증 체계를 또 만드는 복잡도를 피하기 위한 결정.
 
+## 브랜치 전략
+
+- 작업 시작 전 반드시 `develop`에서 `feature/기능명` 브랜치를 생성한다.
+  ```
+  git checkout develop
+  git pull origin develop
+  git checkout -b feature/기능명
+  ```
+- 작업 완료 후 `feature/기능명 → develop` 으로 PR을 생성한다.
+- `main`은 릴리즈 단위로만 develop에서 머지한다.
+- `main` 또는 `develop`에 직접 push 금지.
+
 ## 빌드 / 실행
 
 - 의존성 설치: `npm install`
