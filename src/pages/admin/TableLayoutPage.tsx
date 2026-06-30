@@ -14,7 +14,7 @@ import { getStaffAuth } from '../../api/staff/auth'
 import { StaffHeader } from '../../components/StaffHeader'
 import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
 import ConveyorRail from '../../staff/ConveyorRail'
-import { computeBeltGeo, computeEffectiveActiveIds, computeReorderFromPositions } from '../../staff/railGeometry'
+import { computeEffectiveActiveIds, computeReorderFromGraph } from '../../staff/railGeometry'
 import { formatSeatLabel } from '../../staff/seatLabel'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -291,12 +291,8 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   }, [qrModal]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleReorderSegments() {
-    const geo = computeBeltGeo(elements, tables)
-    if (!geo) {
-      setErrorMessage('주방 기물이 없어 순서를 계산할 수 없습니다.')
-      return
-    }
-    const orders = computeReorderFromPositions(railSegments, tables, geo)
+    // graph 탐색 방식: from→to 체인을 그대로 따라가므로 물리 위치와 무관하게 원래 순서 복원
+    const orders = computeReorderFromGraph(railSegments)
     if (orders.length === 0) return
     setReordering(true)
     reorderRailSegments(orders)
@@ -425,18 +421,7 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
       if (activeDrag.kind === 'table') {
         updateTablePosition(activeDrag.id, position)
           .then((updated) => {
-            const nextTables = tables.map((t) => (t.id === updated.id ? updated : t))
-            setTables(nextTables)
-            // 테이블 위치 변경 후 레일 sequenceOrder 자동 재계산
-            if (railSegments.length > 0) {
-              const geo = computeBeltGeo(elements, nextTables)
-              if (geo) {
-                const orders = computeReorderFromPositions(railSegments, nextTables, geo)
-                reorderRailSegments(orders)
-                  .then(() => listRailSegments().then(setRailSegments))
-                  .catch(() => {})
-              }
-            }
+            setTables((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
           })
           .catch((err: unknown) => {
             setErrorMessage(err instanceof ApiError ? err.message : '위치 저장에 실패했습니다.')
@@ -444,18 +429,7 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
       } else {
         updateFloorPlanElementPosition(activeDrag.id, position)
           .then((updated) => {
-            const nextElements = elements.map((el) => (el.id === updated.id ? updated : el))
-            setElements(nextElements)
-            // 기물(특히 주방) 이동 후 레일 BeltGeo가 바뀌므로 sequenceOrder 자동 재계산
-            if (railSegments.length > 0) {
-              const geo = computeBeltGeo(nextElements, tables)
-              if (geo) {
-                const orders = computeReorderFromPositions(railSegments, tables, geo)
-                reorderRailSegments(orders)
-                  .then(() => listRailSegments().then(setRailSegments))
-                  .catch(() => {})
-              }
-            }
+            setElements((prev) => prev.map((el) => (el.id === updated.id ? updated : el)))
           })
           .catch((err: unknown) => {
             setErrorMessage(err instanceof ApiError ? err.message : '위치 저장에 실패했습니다.')

@@ -5,6 +5,7 @@ import type { FloorPlanElement } from '../../api/staff/floorPlanElementApi'
 import {
   computeBeltGeo,
   computeEffectiveActiveIds,
+  computeReorderFromGraph,
   computeReorderFromPositions,
   tableToArcT,
 } from '../railGeometry'
@@ -312,5 +313,58 @@ describe('computeReorderFromPositions', () => {
     expect(origOrder.get(10)).not.toBe(newOrder.get(10))
     // 그리고 id=20 이 새 start → seq=1
     expect(newOrder.get(20)).toBe(1)
+  })
+})
+
+// ─── computeReorderFromGraph ──────────────────────────────────────────────────
+describe('computeReorderFromGraph', () => {
+  function seg(id: number, from: number, to: number): RailSegment {
+    return { id, sequenceOrder: 99, active: true, fromTableId: from, toTableId: to }
+  }
+
+  it('빈 배열 → 빈 결과', () => {
+    expect(computeReorderFromGraph([])).toEqual([])
+  })
+
+  it('chain 구조: 시작 테이블부터 순서대로 seq 부여', () => {
+    // 1→2→3→4 (chain, 4에서 끝)
+    const segs = [seg(10, 1, 2), seg(20, 2, 3), seg(30, 3, 4)]
+    const result = computeReorderFromGraph(segs)
+    const order = new Map(result.map((r) => [r.segmentId, r.sequenceOrder]))
+    expect(order.get(10)).toBe(1) // from=1 (chain start) → seq=1
+    expect(order.get(20)).toBe(2)
+    expect(order.get(30)).toBe(3)
+  })
+
+  it('chain 구조: 입력 배열이 뒤섞여도 시작점 자동 감지', () => {
+    // 뒤섞인 순서로 입력
+    const segs = [seg(30, 3, 4), seg(10, 1, 2), seg(20, 2, 3)]
+    const result = computeReorderFromGraph(segs)
+    const order = new Map(result.map((r) => [r.segmentId, r.sequenceOrder]))
+    expect(order.get(10)).toBe(1)
+    expect(order.get(20)).toBe(2)
+    expect(order.get(30)).toBe(3)
+  })
+
+  it('chain 구조: 실제 레이아웃 흉내 (1→…→10→21→22→23→11→…→20)', () => {
+    // 9개 regular + 3개 counter + 9개 = 21? 아니면 10+3+9=22
+    const ids = [1,2,3,4,5,6,7,8,9,10,21,22,23,11,12,13,14,15,16,17,18,19,20]
+    const segs = ids.slice(0, -1).map((from, i) => seg(i + 1, from, ids[i + 1]))
+    // 뒤섞어도 graph 순서 복원
+    const shuffled = [...segs].reverse()
+    const result = computeReorderFromGraph(shuffled)
+    const order = new Map(result.map((r) => [r.segmentId, r.sequenceOrder]))
+    for (let i = 0; i < segs.length; i++) {
+      expect(order.get(segs[i].id)).toBe(i + 1)
+    }
+  })
+
+  it('loop 구조: 순환이어도 모든 segment에 seq 부여', () => {
+    // 1→2→3→4→1 (loop)
+    const segs = [seg(10, 1, 2), seg(20, 2, 3), seg(30, 3, 4), seg(40, 4, 1)]
+    const result = computeReorderFromGraph(segs)
+    expect(result).toHaveLength(4)
+    const seqValues = result.map((r) => r.sequenceOrder).sort((a, b) => a - b)
+    expect(seqValues).toEqual([1, 2, 3, 4])
   })
 })
