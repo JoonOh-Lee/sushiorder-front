@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { clearStaffAuth, getStaffAuth, updateStaffAuthOnDuty, updateStaffAuthStationId } from '../api/staff/auth'
 import { assignMyStation, listStations, setMyDuty, type Station } from '../api/staff/stationApi'
 
-export type AdminPanelKey = 'menu' | 'notice' | 'station' | 'staff' | 'table-layout'
+export type AdminPanelKey = 'menu' | 'notice' | 'station' | 'staff' | 'table-layout' | 'audit-log'
 
 const ROLE_LABEL = { STAFF: '직원', ADMIN: '관리자' }
 
@@ -13,6 +13,7 @@ const ADMIN_ITEMS: { label: string; key: AdminPanelKey; path: string }[] = [
   { label: '스테이션 관리', key: 'station', path: '/admin/station' },
   { label: '직원 계정 관리', key: 'staff', path: '/admin/staff' },
   { label: '매장 배치 설정', key: 'table-layout', path: '/admin/table-layout' },
+  { label: '감사 로그', key: 'audit-log', path: '/admin/audit-log' },
 ]
 
 interface StaffHeaderProps {
