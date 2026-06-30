@@ -114,6 +114,51 @@ describe('computeEffectiveActiveIds', () => {
   })
 })
 
+// ─── 비활성화 시맨틱: fromTableId vs toTableId ────────────────────────────────
+// 핵심 규칙: 클릭한 테이블의 fromTableId segment를 끊으면
+//   → 클릭 테이블까지는 음식 도달 (effectiveActive), 이후 테이블은 미도달
+//   → 클릭 테이블의 incomingSeg는 여전히 effectiveActive에 포함됨
+
+describe('비활성화 시맨틱 — fromTableId 컷오프', () => {
+  // 4개 테이블, seq 순서: 1(toTableId=T1), 2(toTableId=T2), 3(toTableId=T3), 4(toTableId=T4)
+  // fromTableId segments: seg1(from=T0→T1), seg2(from=T1→T2), seg3(from=T2→T3), seg4(from=T3→T4)
+  // 테이블3 클릭 = from=T3 segment를 inactive
+  // = seg3(toTableId=T3)가 effectiveActive에 남아야 함 → 테이블3에 음식 도달
+  // = seg4(toTableId=T4)부터 effectiveActive에 없어야 함 → 테이블4부터 미도달
+
+  it('테이블3 클릭 시: 테이블3 incoming seg(seq=3)은 effectiveActive에 포함됨', () => {
+    // seg ids: 10=to1, 20=to2, 30=to3, 40=to4(from=T3→T4, 이것이 비활성)
+    const segs = [
+      seg(10, 1, true),   // toTableId=T1
+      seg(20, 2, true),   // toTableId=T2
+      seg(30, 3, true),   // toTableId=T3  ← 테이블3의 incoming
+      seg(40, 4, false),  // toTableId=T4  ← 테이블3의 outgoing(fromTableId=T3)이 비활성 → 컷오프
+    ]
+    const result = computeEffectiveActiveIds(segs, 'cw')
+    // seq 4가 inactive → 컷오프. seq 1,2,3은 effectiveActive
+    expect(result).toEqual(new Set([10, 20, 30]))
+    // 테이블3의 incoming seg(id=30)이 effectiveActive에 포함 = 음식 도달 ✓
+    expect(result.has(30)).toBe(true)
+    // 테이블4의 incoming seg(id=40)은 미포함 = 음식 미도달 ✓
+    expect(result.has(40)).toBe(false)
+  })
+
+  it('테이블1(첫 번째) 클릭 시: 아무 테이블도 음식 미도달 (seq=1 컷오프)', () => {
+    const segs = [
+      seg(10, 1, false),  // toTableId=T1, 테이블1 outgoing = 컷오프 = seq=1 inactive
+      seg(20, 2, true),
+      seg(30, 3, true),
+    ]
+    // seq=1부터 바로 컷 → effectiveActive 없음
+    expect(computeEffectiveActiveIds(segs, 'cw')).toEqual(new Set())
+  })
+
+  it('컷오프 해제(isOnlyCutoff=true): 모든 seg active 시 모두 effectiveActive', () => {
+    const segs = [seg(10, 1, true), seg(20, 2, true), seg(30, 3, true), seg(40, 4, true)]
+    expect(computeEffectiveActiveIds(segs, 'cw')).toEqual(new Set([10, 20, 30, 40]))
+  })
+})
+
 // ─── computeBeltGeo ─────────────────────────────────────────────────────────
 
 describe('computeBeltGeo', () => {
