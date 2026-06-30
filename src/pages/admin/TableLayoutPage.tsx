@@ -14,7 +14,7 @@ import { getStaffAuth } from '../../api/staff/auth'
 import { StaffHeader } from '../../components/StaffHeader'
 import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
 import ConveyorRail from '../../staff/ConveyorRail'
-import { computeBeltGeo, computeEffectiveActiveIds, computeReorderFromPositions } from '../../staff/railGeometry'
+import { computeEffectiveActiveIds, computeReorderFromGraph } from '../../staff/railGeometry'
 import { formatSeatLabel } from '../../staff/seatLabel'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -237,7 +237,7 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   const [tables, setTables] = useState<RestaurantTable[]>([])
   const [elements, setElements] = useState<FloorPlanElement[]>([])
   const [railSegments, setRailSegments] = useState<RailSegment[]>([])
-  const [togglingSegmentId, setTogglingSegmentId] = useState<number | null>(null)
+  const [settingCutoff, setSettingCutoff] = useState(false)
   const [drag, setDrag] = useState<DragState | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [mode, setMode] = useState<Mode>('layout')
@@ -291,12 +291,8 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   }, [qrModal]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleReorderSegments() {
-    const geo = computeBeltGeo(elements, tables)
-    if (!geo) {
-      setErrorMessage('주방 기물이 없어 순서를 계산할 수 없습니다.')
-      return
-    }
-    const orders = computeReorderFromPositions(railSegments, tables, geo)
+    // graph 탐색 방식: from→to 체인을 그대로 따라가므로 물리 위치와 무관하게 원래 순서 복원
+    const orders = computeReorderFromGraph(railSegments)
     if (orders.length === 0) return
     setReordering(true)
     reorderRailSegments(orders)
@@ -307,23 +303,42 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
       .finally(() => setReordering(false))
   }
 
-  function handleToggleTableSegment(table: RestaurantTable) {
-    const seg = railSegments.find((s) => s.toTableId === table.id)
-    if (!seg) return
-    setTogglingSegmentId(seg.id)
-    const action = seg.active ? deactivateRailSegment : activateRailSegment
-    action(seg.id)
-      .then((updated) => {
-        setRailSegments((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
-        setTogglingSegmentId(null)
-      })
-      .catch((err: unknown) => {
-        setErrorMessage(err instanceof ApiError ? err.message : '레일 구간 변경에 실패했습니다.')
-        setTogglingSegmentId(null)
-        listRailSegments()
-          .then(setRailSegments)
-          .catch(() => {})
-      })
+  async function handleSetDeactivationPoint(table: RestaurantTable) {
+    // fromTableId 기준: 클릭한 테이블에서 나가는 segment를 끊음
+    // → 클릭한 테이블까지는 음식 도달, 이후 테이블부터 미도달
+    const seg = railSegments.find((s) => s.fromTableId === table.id)
+    if (!seg || settingCutoff) return
+
+    // 현재 DB에서 inactive인 구간 모두 수집 (레거시 상태 포함)
+    const inactiveSegs = railSegments.filter((s) => !s.active)
+    // 클릭한 구간이 유일한 비활성 = 현재 컷오프 → 클리어
+    const isOnlyCutoff = inactiveSegs.length === 1 && inactiveSegs[0].id === seg.id
+
+    setSettingCutoff(true)
+    setErrorMessage('')
+
+    try {
+      // 기존 비활성 구간 전부 활성화 (DB를 깨끗한 상태로)
+      if (inactiveSegs.length > 0) {
+        const results = await Promise.all(inactiveSegs.map((s) => activateRailSegment(s.id)))
+        setRailSegments((prev) => {
+          let next = [...prev]
+          for (const r of results) next = next.map((s) => (s.id === r.id ? r : s))
+          return next
+        })
+      }
+
+      // 클리어가 아니면 새 컷오프 지점을 비활성화
+      if (!isOnlyCutoff) {
+        const deactivated = await deactivateRailSegment(seg.id)
+        setRailSegments((prev) => prev.map((s) => (s.id === deactivated.id ? deactivated : s)))
+      }
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof ApiError ? err.message : '레일 구간 변경에 실패했습니다.')
+      listRailSegments().then(setRailSegments).catch(() => {})
+    } finally {
+      setSettingCutoff(false)
+    }
   }
 
   function handleSwitchMode(next: Mode) {
@@ -406,7 +421,7 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
       if (activeDrag.kind === 'table') {
         updateTablePosition(activeDrag.id, position)
           .then((updated) => {
-            setTables((prev) => prev.map((table) => (table.id === updated.id ? updated : table)))
+            setTables((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
           })
           .catch((err: unknown) => {
             setErrorMessage(err instanceof ApiError ? err.message : '위치 저장에 실패했습니다.')
@@ -495,12 +510,23 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   const effectiveActiveSegIds = computeEffectiveActiveIds(railSegments, railDirection)
 
   function railModeTableClass(table: RestaurantTable): string {
-    const seg = railSegments.find((s) => s.toTableId === table.id)
-    if (!seg) return 'bg-ink/10 text-muted cursor-default'
-    if (togglingSegmentId === seg.id) return 'bg-primary-300 text-white animate-pulse cursor-wait'
-    return effectiveActiveSegIds.has(seg.id)
-      ? 'bg-primary-400 text-white cursor-pointer active:scale-95'
-      : 'bg-ink/15 text-muted opacity-60 cursor-pointer active:scale-95'
+    const incomingSeg = railSegments.find((s) => s.toTableId === table.id)
+    if (!incomingSeg) return 'bg-ink/10 text-muted cursor-default'
+    if (settingCutoff) return 'opacity-50 cursor-wait'
+
+    const outgoingSeg = railSegments.find((s) => s.fromTableId === table.id)
+    const foodArrives = effectiveActiveSegIds.has(incomingSeg.id)
+    // 음식이 도달하고 나가는 segment가 컷오프 = 이 테이블이 마지막 도달 지점
+    const isLastActive = foodArrives && outgoingSeg != null && !outgoingSeg.active
+
+    if (isLastActive) {
+      // 마지막 도달 테이블 — 주황색 표시 (클릭 시 클리어)
+      return 'bg-amber-400 text-white ring-2 ring-amber-300 cursor-pointer active:scale-95'
+    }
+    if (foodArrives) {
+      return 'bg-primary-400 text-white cursor-pointer active:scale-95'
+    }
+    return 'bg-ink/15 text-muted opacity-60 cursor-pointer active:scale-95'
   }
 
   const placedTables = tables.filter(
@@ -582,11 +608,15 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
           ) : (
             <>
               <span className="flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full bg-primary-400" /> 활성
+                <span className="h-2.5 w-2.5 rounded-full bg-primary-400" /> 도달
               </span>
               <span className="flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full bg-ink/15" /> 비활성
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> 마지막 도달
               </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-ink/15" /> 미도달
+              </span>
+              <span className="ml-auto text-muted">눌러서 마지막 도달 좌석 설정</span>
             </>
           )}
         </div>
@@ -696,8 +726,8 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
                 <button
                   key={`table-${table.id}`}
                   type="button"
-                  disabled={togglingSegmentId !== null}
-                  onClick={() => handleToggleTableSegment(table)}
+                  disabled={settingCutoff}
+                  onClick={() => handleSetDeactivationPoint(table)}
                   className={`absolute flex items-center justify-center rounded-lg text-xs font-semibold shadow-sm transition-opacity ${railModeTableClass(table)}`}
                   style={{
                     left: `${table.x}%`,
