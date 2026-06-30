@@ -172,6 +172,39 @@ export function computeReorderFromPositions(
   return ordered.map((seg, i) => ({ segmentId: seg.id, sequenceOrder: i + 1 }))
 }
 
+// fromTableId→toTableId 그래프를 순수하게 따라가며 sequenceOrder 재계산
+// chain(시작→끝)과 loop(순환) 모두 처리.
+// chain: to_table에 등장하지 않는 from_table을 시작점으로 잡고 단방향 탐색.
+// loop: 시작점이 없으면 첫 번째 segment에서 출발.
+export function computeReorderFromGraph(
+  segments: RailSegment[],
+): { segmentId: number; sequenceOrder: number }[] {
+  if (segments.length === 0) return []
+
+  const fromMap = new Map<number, RailSegment>()
+  for (const seg of segments) fromMap.set(seg.fromTableId, seg)
+
+  // chain 시작점: from_table이 어떤 segment의 to_table에도 없는 경우
+  const toIds = new Set(segments.map((s) => s.toTableId))
+  const startSeg =
+    segments.find((s) => !toIds.has(s.fromTableId)) ?? segments[0]
+
+  const ordered: RailSegment[] = []
+  const visited = new Set<number>()
+  let current: RailSegment | undefined = startSeg
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id)
+    ordered.push(current)
+    current = fromMap.get(current.toTableId)
+  }
+  // 연결되지 않은 구간은 뒤에 추가
+  for (const seg of segments) {
+    if (!visited.has(seg.id)) ordered.push(seg)
+  }
+
+  return ordered.map((seg, i) => ({ segmentId: seg.id, sequenceOrder: i + 1 }))
+}
+
 // sequenceOrder 기준으로 정렬 후 flow-cut 적용
 // arc-length(물리 위치) 정렬은 순환 벨트 wrap-around를 알 수 없어 오동작함
 export function computeEffectiveActiveIds(
