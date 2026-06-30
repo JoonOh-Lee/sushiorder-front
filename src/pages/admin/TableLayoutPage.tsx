@@ -442,7 +442,18 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
       } else {
         updateFloorPlanElementPosition(activeDrag.id, position)
           .then((updated) => {
-            setElements((prev) => prev.map((el) => (el.id === updated.id ? updated : el)))
+            const nextElements = elements.map((el) => (el.id === updated.id ? updated : el))
+            setElements(nextElements)
+            // 기물(특히 주방) 이동 후 레일 BeltGeo가 바뀌므로 sequenceOrder 자동 재계산
+            if (railSegments.length > 0) {
+              const geo = computeBeltGeo(nextElements, tables)
+              if (geo) {
+                const orders = computeReorderFromPositions(railSegments, tables, geo)
+                reorderRailSegments(orders)
+                  .then(() => listRailSegments().then(setRailSegments))
+                  .catch(() => {})
+              }
+            }
           })
           .catch((err: unknown) => {
             setErrorMessage(err instanceof ApiError ? err.message : '위치 저장에 실패했습니다.')
