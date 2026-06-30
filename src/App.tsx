@@ -8,6 +8,7 @@ import MenuManagePage from './pages/admin/MenuManagePage'
 import NoticeManagePage from './pages/admin/NoticeManagePage'
 import StationManagePage from './pages/admin/StationManagePage'
 import StaffManagePage from './pages/admin/StaffManagePage'
+import AuditLogPage from './pages/admin/AuditLogPage'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
       <Route path="/admin/notice" element={<NoticeManagePage />} />
       <Route path="/admin/station" element={<StationManagePage />} />
       <Route path="/admin/staff" element={<StaffManagePage />} />
+      <Route path="/admin/audit-log" element={<AuditLogPage />} />
       <Route path="/staff" element={<FloorBoardPage />} />
     </Routes>
   )
