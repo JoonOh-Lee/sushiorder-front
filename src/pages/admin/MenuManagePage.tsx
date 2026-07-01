@@ -442,6 +442,17 @@ function MenuManagePage({ onClose }: { onClose?: () => void }) {
     setTimeout(() => setToastMsg(''), 2500)
   }
 
+  const LOW_STOCK_THRESHOLD = 5
+  const lowStockMenus = menus.filter(
+    (m) => m.active && m.stockCount !== null && m.stockCount <= LOW_STOCK_THRESHOLD,
+  )
+
+  useEffect(() => {
+    if (activeCategory === 'LOW_STOCK' && lowStockMenus.length === 0) {
+      setActiveCategory('ALL')
+    }
+  }, [activeCategory, lowStockMenus.length])
+
   const CATEGORY_ORDER = Object.keys(CATEGORY_LABEL)
   const categories = [
     'ALL',
@@ -460,9 +471,10 @@ function MenuManagePage({ onClose }: { onClose?: () => void }) {
     ? menus.filter((m) => m.name.includes(search.trim()))
     : menus
 
-  const filtered = searchFiltered.filter(
-    (m) => activeCategory === 'ALL' || m.category === activeCategory,
-  )
+  const filtered =
+    activeCategory === 'LOW_STOCK'
+      ? lowStockMenus.filter((m) => !search.trim() || m.name.includes(search.trim()))
+      : searchFiltered.filter((m) => activeCategory === 'ALL' || m.category === activeCategory)
 
   function stationName(id: number) {
     return stations.find((s) => s.id === id)?.name ?? `#${id}`
@@ -527,6 +539,22 @@ function MenuManagePage({ onClose }: { onClose?: () => void }) {
           className="mx-auto flex max-w-3xl gap-1.5 overflow-x-auto pb-3 pt-2"
           style={{ scrollbarWidth: 'none' }}
         >
+          {lowStockMenus.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveCategory('LOW_STOCK')}
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                activeCategory === 'LOW_STOCK'
+                  ? 'bg-red-500 text-white shadow-sm'
+                  : 'bg-red-50 text-red-600 hover:bg-red-100'
+              }`}
+            >
+              ⚠ 재고 부족
+              <span className={`ml-1 text-xs ${activeCategory === 'LOW_STOCK' ? 'opacity-70' : 'opacity-60'}`}>
+                {lowStockMenus.length}
+              </span>
+            </button>
+          )}
           {categories.map((cat) => {
             const count = cat === 'ALL' ? searchFiltered.length : searchFiltered.filter((m) => m.category === cat).length
             return (
@@ -573,7 +601,12 @@ function MenuManagePage({ onClose }: { onClose?: () => void }) {
                 <span className="font-semibold text-ink">"{search}"</span> 검색 결과 {filtered.length}개
               </p>
             )}
-            {!search && activeCategory !== 'ALL' && (
+            {!search && activeCategory === 'LOW_STOCK' && (
+              <p className="mb-3 text-sm text-amber-700">
+                재고 {LOW_STOCK_THRESHOLD}개 이하인 활성 메뉴 {filtered.length}개
+              </p>
+            )}
+            {!search && activeCategory !== 'ALL' && activeCategory !== 'LOW_STOCK' && (
               <p className="mb-3 text-sm text-muted">
                 활성 {activeCount}개 · 비활성 {inactiveCount}개
               </p>
