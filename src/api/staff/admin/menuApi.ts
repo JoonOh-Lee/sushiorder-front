@@ -58,3 +58,7 @@ export function activateMenu(id: number): Promise<void> {
 export function deactivateMenu(id: number): Promise<void> {
   return staffFetch<void>(`/api/v1/admin/menu/${id}/deactivate`, { method: 'PATCH' })
 }
+
+export function getLowStockMenus(threshold = 5): Promise<MenuItem[]> {
+  return staffFetch<MenuItem[]>(`/api/v1/admin/menu/low-stock?threshold=${threshold}`)
+}
