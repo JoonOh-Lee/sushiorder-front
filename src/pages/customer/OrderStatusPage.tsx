@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ApiError } from '../../api/types'
 import { getMyOrders, type Order, type OrderStatus } from '../../customer/orderApi'
+import { usePolling } from '../../hooks/usePolling'
 import { formatSeatLabel, type SeatType } from '../../customer/seat'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -31,30 +32,22 @@ function OrderStatusPage({ seat, onBack }: OrderStatusPageProps) {
   const [errorMessage, setErrorMessage] = useState('')
   const [orders, setOrders] = useState<Order[]>([])
 
-  useEffect(() => {
-    let cancelled = false
-
-    function load() {
-      getMyOrders()
-        .then((result) => {
-          if (cancelled) return
-          setOrders([...result].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
-          setStatus('ready')
+  function load() {
+    getMyOrders()
+      .then((result) => {
+        setOrders([...result].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+        setStatus('ready')
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof ApiError ? err.message : '주문 내역을 불러오지 못했습니다.'
+        setStatus((prev) => {
+          if (prev === 'loading') { setErrorMessage(msg); return 'error' }
+          return prev
         })
-        .catch((err: unknown) => {
-          if (cancelled) return
-          setErrorMessage(err instanceof ApiError ? err.message : '주문 내역을 불러오지 못했습니다.')
-          setStatus('error')
-        })
-    }
+      })
+  }
 
-    load()
-    const interval = setInterval(load, POLL_INTERVAL_MS)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [])
+  usePolling(load, POLL_INTERVAL_MS)
 
   return (
     <div className="min-h-screen bg-surface pb-6">
