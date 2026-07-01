@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { usePolling } from '../../hooks/usePolling'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/types'
 import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../api/staff/floorPlanElementApi'
@@ -49,11 +50,6 @@ const ELEMENT_TYPE_CLASS: Record<FloorPlanElementType, string> = {
 const POLL_INTERVAL_MS = 10_000
 const ACTION_ERROR_DISPLAY_MS = 4_000
 const COVERING_STORAGE_PREFIX = 'sushiorder.staff.covering.'
-
-const ROLE_LABEL: Record<StaffAuth['role'], string> = {
-  STAFF: '직원',
-  ADMIN: '관리자',
-}
 
 const CALL_TYPE_LABEL: Record<CallType, string> = {
   WATER_REFILL: '물 리필',
@@ -258,7 +254,7 @@ function FloorBoardPage() {
   const [processingKey, setProcessingKey] = useState<string | null>(null)
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null)
   const [showListModal, setShowListModal] = useState(false)
-  const [railDirection] = useState<RailDirection>(
+  const [railDirection, setRailDirection] = useState<RailDirection>(
     () => (localStorage.getItem(RAIL_DIRECTION_KEY) as RailDirection | null) ?? 'cw',
   )
   const [adminPanel, setAdminPanel] = useState<AdminPanelKey | null>(null)
@@ -280,37 +276,35 @@ function FloorBoardPage() {
     localStorage.setItem(`${COVERING_STORAGE_PREFIX}${auth.username}`, JSON.stringify(coveringStationIds))
   }, [auth, coveringStationIds])
 
+  function loadAll() {
+    Promise.all([listTables(), listFloorPlanElements(), listRailSegments(), listAllActiveOrders(), listStaffCalls(), listStations()])
+      .then(([tableResult, elementResult, railResult, orderResult, callResult, stationResult]) => {
+        setTables(tableResult)
+        setElements(elementResult)
+        setRailSegments(railResult)
+        setOrders([...orderResult].sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
+        setCalls([...callResult].sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
+        setStations(stationResult)
+        setStatus('ready')
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof ApiError ? err.message : '현황을 불러오지 못했습니다.'
+        setStatus((prev) => {
+          if (prev === 'loading') { setErrorMessage(msg); return 'error' }
+          setActionError(msg)
+          return prev
+        })
+      })
+  }
+
+  usePolling(loadAll, POLL_INTERVAL_MS, !!auth && auth.stationId !== null)
+
   useEffect(() => {
-    if (!auth || auth.stationId === null) return
-
-    let cancelled = false
-
-    function load() {
-      Promise.all([listTables(), listFloorPlanElements(), listRailSegments(), listAllActiveOrders(), listStaffCalls(), listStations()])
-        .then(([tableResult, elementResult, railResult, orderResult, callResult, stationResult]) => {
-          if (cancelled) return
-          setTables(tableResult)
-          setElements(elementResult)
-          setRailSegments(railResult)
-          setOrders([...orderResult].sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
-          setCalls([...callResult].sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
-          setStations(stationResult)
-          setStatus('ready')
-        })
-        .catch((err: unknown) => {
-          if (cancelled) return
-          setErrorMessage(err instanceof ApiError ? err.message : '현황을 불러오지 못했습니다.')
-          setStatus('error')
-        })
-    }
-
-    load()
-    const interval = setInterval(load, POLL_INTERVAL_MS)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [auth])
+    const handler = (e: Event) =>
+      setRailDirection((e as CustomEvent<RailDirection>).detail)
+    window.addEventListener('sushiorder:rail-direction', handler)
+    return () => window.removeEventListener('sushiorder:rail-direction', handler)
+  }, [])
 
   useEffect(() => {
     if (!actionError) return
