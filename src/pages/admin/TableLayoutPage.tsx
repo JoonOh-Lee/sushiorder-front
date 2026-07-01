@@ -14,7 +14,7 @@ import { getStaffAuth } from '../../api/staff/auth'
 import { StaffHeader } from '../../components/StaffHeader'
 import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
 import ConveyorRail from '../../staff/ConveyorRail'
-import { computeEffectiveActiveIds, computeReorderFromGraph } from '../../staff/railGeometry'
+import { computeBeltGeo, computeEffectiveActiveIds, computeReorderFromGraph, computeReorderFromPositions } from '../../staff/railGeometry'
 import { formatSeatLabel } from '../../staff/seatLabel'
 
 type Status = 'loading' | 'ready' | 'error'
@@ -304,9 +304,12 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   }
 
   async function handleSetDeactivationPoint(table: RestaurantTable) {
-    // fromTableId 기준: 클릭한 테이블에서 나가는 segment를 끊음
-    // → 클릭한 테이블까지는 음식 도달, 이후 테이블부터 미도달
-    const seg = railSegments.find((s) => s.fromTableId === table.id)
+    // CW:  클릭한 테이블에서 나가는 segment(fromTableId)를 끊음 → 해당 테이블이 마지막 도달
+    // CCW: 클릭한 테이블로 들어오는 segment(toTableId)를 끊음  → 해당 테이블이 마지막 도달
+    const seg =
+      railDirection === 'cw'
+        ? railSegments.find((s) => s.fromTableId === table.id)
+        : railSegments.find((s) => s.toTableId === table.id)
     if (!seg || settingCutoff) return
 
     // 현재 DB에서 inactive인 구간 모두 수집 (레거시 상태 포함)
@@ -421,7 +424,21 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
       if (activeDrag.kind === 'table') {
         updateTablePosition(activeDrag.id, position)
           .then((updated) => {
-            setTables((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+            const updatedTables = tables.map((t) => (t.id === updated.id ? updated : t))
+            setTables(updatedTables)
+            // 컷오프 없을 때만 위치 기반 자동 재정렬 (컷오프 중엔 sequenceOrder 변경이 활성 범위를 바꿀 수 있음)
+            const allActive = railSegments.every((s) => s.active)
+            if (allActive && railSegments.length > 0) {
+              const geo = computeBeltGeo(elements, updatedTables)
+              if (geo) {
+                const orders = computeReorderFromPositions(railSegments, updatedTables, geo)
+                if (orders.length > 0) {
+                  reorderRailSegments(orders)
+                    .then(() => listRailSegments().then(setRailSegments))
+                    .catch(() => {})
+                }
+              }
+            }
           })
           .catch((err: unknown) => {
             setErrorMessage(err instanceof ApiError ? err.message : '위치 저장에 실패했습니다.')
@@ -510,12 +527,24 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   const effectiveActiveSegIds = computeEffectiveActiveIds(railSegments, railDirection)
 
   function railModeTableClass(table: RestaurantTable): string {
-    const incomingSeg = railSegments.find((s) => s.toTableId === table.id)
-    if (!incomingSeg) return 'bg-ink/10 text-muted cursor-default'
+    // CCW는 belt 역방향: CW 기준 "나가는 segment"(fromTableId)가 음식 도착 방향,
+    // "들어오는 segment"(toTableId)가 컷오프 대상이 됨
+    const incomingSeg =
+      railDirection === 'cw'
+        ? railSegments.find((s) => s.toTableId === table.id)
+        : railSegments.find((s) => s.fromTableId === table.id)
+    const outgoingSeg =
+      railDirection === 'cw'
+        ? railSegments.find((s) => s.fromTableId === table.id)
+        : railSegments.find((s) => s.toTableId === table.id)
+
+    // 레일 segment가 전혀 없는 테이블 (배치됐지만 레일 미연결)
+    if (!incomingSeg && !outgoingSeg) return 'bg-ink/10 text-muted cursor-default'
     if (settingCutoff) return 'opacity-50 cursor-wait'
 
-    const outgoingSeg = railSegments.find((s) => s.fromTableId === table.id)
-    const foodArrives = effectiveActiveSegIds.has(incomingSeg.id)
+    // 체인 시작점: 방향 기준 들어오는 segment 없음 = 주방 직결 → 항상 음식 도달
+    const isChainStart = !incomingSeg
+    const foodArrives = isChainStart || effectiveActiveSegIds.has(incomingSeg!.id)
     // 음식이 도달하고 나가는 segment가 컷오프 = 이 테이블이 마지막 도달 지점
     const isLastActive = foodArrives && outgoingSeg != null && !outgoingSeg.active
 
@@ -815,13 +844,14 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
                   setRailDirection((d) => {
                     const next = d === 'cw' ? 'ccw' : 'cw'
                     localStorage.setItem(RAIL_DIRECTION_KEY, next)
+                    window.dispatchEvent(new CustomEvent('sushiorder:rail-direction', { detail: next }))
                     return next
                   })
                   setFabOpen(false)
                 }}
                 className="flex items-center gap-2 rounded-full bg-surface-raised px-4 py-2.5 text-sm font-semibold text-ink shadow-lg"
               >
-                {railDirection === 'cw' ? '↻ 시계방향' : '↺ 반시계방향'}
+                {railDirection === 'cw' ? '↺ 반시계방향으로 전환' : '↻ 시계방향으로 전환'}
               </button>
             </div>
 
