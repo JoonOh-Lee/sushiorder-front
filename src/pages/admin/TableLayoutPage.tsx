@@ -249,6 +249,7 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
   const [qrLoading, setQrLoading] = useState(false)
   const [reordering, setReordering] = useState(false)
   const [fabOpen, setFabOpen] = useState(false)
+  const [printingAll, setPrintingAll] = useState(false)
 
   useEffect(() => {
     const auth = getStaffAuth()
@@ -524,6 +525,76 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
       })
   }
 
+  async function toDataUrl(blobUrl: string): Promise<string> {
+    const res = await fetch(blobUrl)
+    const blob = await res.blob()
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  function openPrintWindow(html: string) {
+    const win = window.open('', '_blank')
+    if (!win) { setErrorMessage('팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 시도하세요.'); return }
+    win.document.write(html)
+    win.document.close()
+  }
+
+  async function handlePrintQr() {
+    if (!qrBlobUrl || !qrModal) return
+    const dataUrl = await toDataUrl(qrBlobUrl)
+    openPrintWindow(
+      `<!DOCTYPE html><html><head><title>${qrModal.label} QR 코드</title>` +
+      `<style>body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;` +
+      `min-height:100vh;font-family:sans-serif}img{width:240px;height:240px}` +
+      `p{margin-top:12px;font-size:18px;font-weight:700}</style></head>` +
+      `<body><img src="${dataUrl}"><p>${qrModal.label}</p>` +
+      `<script>window.addEventListener('load',()=>{window.print();setTimeout(window.close,500)})<\/script></body></html>`,
+    )
+  }
+
+  async function handlePrintAllQr() {
+    const placed = tables.filter((t) => t.x !== null)
+    if (placed.length === 0) return
+    setPrintingAll(true)
+    setErrorMessage('')
+    try {
+      const items = await Promise.all(
+        [...placed]
+          .sort((a, b) => a.tableNumber - b.tableNumber)
+          .map(async (t) => {
+            const blobUrl = await fetchTableQrBlobUrl(t.id)
+            try {
+              const dataUrl = await toDataUrl(blobUrl)
+              return { label: formatSeatLabel(t.seatType, t.tableNumber), dataUrl }
+            } finally {
+              URL.revokeObjectURL(blobUrl)
+            }
+          }),
+      )
+      const cards = items
+        .map(({ label, dataUrl }) => `<div class="c"><img src="${dataUrl}"><p>${label}</p></div>`)
+        .join('')
+      openPrintWindow(
+        `<!DOCTYPE html><html><head><title>QR 전체 인쇄</title>` +
+        `<style>*{box-sizing:border-box}body{margin:16px;font-family:sans-serif}` +
+        `.g{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}` +
+        `.c{text-align:center;border:1px solid #e5e7eb;padding:12px;border-radius:8px;page-break-inside:avoid}` +
+        `.c img{width:100%;aspect-ratio:1;object-fit:contain}.c p{margin:6px 0 0;font-size:13px;font-weight:700}` +
+        `@media print{@page{margin:12mm}}</style></head>` +
+        `<body><div class="g">${cards}</div>` +
+        `<script>window.addEventListener('load',()=>{window.print();setTimeout(window.close,500)})<\/script></body></html>`,
+      )
+    } catch {
+      setErrorMessage('QR 코드 인쇄에 실패했습니다.')
+    } finally {
+      setPrintingAll(false)
+    }
+  }
+
   const effectiveActiveSegIds = computeEffectiveActiveIds(railSegments, railDirection)
 
   function railModeTableClass(table: RestaurantTable): string {
@@ -797,6 +868,14 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
               </div>
               <button
                 type="button"
+                onClick={handlePrintAllQr}
+                disabled={printingAll}
+                className="shrink-0 rounded-full bg-ink/10 px-4 py-2 text-sm font-semibold text-ink active:scale-95 disabled:opacity-50"
+              >
+                {printingAll ? '준비 중...' : 'QR 전체 인쇄'}
+              </button>
+              <button
+                type="button"
                 onClick={() => setShowCreateModal(true)}
                 className="shrink-0 rounded-full bg-primary-500 px-4 py-2 text-sm font-semibold text-white active:scale-95"
               >
@@ -897,13 +976,22 @@ function TableLayoutPage({ onClose }: { onClose?: () => void }) {
                 닫기
               </button>
               {qrBlobUrl && (
-                <a
-                  href={qrBlobUrl}
-                  download={`table-${qrModal.tableId}-qr.png`}
-                  className="flex flex-1 items-center justify-center rounded-full bg-primary-500 py-2.5 text-sm font-semibold text-white active:scale-95"
-                >
-                  다운로드
-                </a>
+                <>
+                  <button
+                    type="button"
+                    onClick={handlePrintQr}
+                    className="flex flex-1 items-center justify-center rounded-full bg-ink/10 py-2.5 text-sm font-semibold text-ink active:scale-95"
+                  >
+                    인쇄
+                  </button>
+                  <a
+                    href={qrBlobUrl}
+                    download={`table-${qrModal.tableId}-qr.png`}
+                    className="flex flex-1 items-center justify-center rounded-full bg-primary-500 py-2.5 text-sm font-semibold text-white active:scale-95"
+                  >
+                    다운로드
+                  </a>
+                </>
               )}
             </div>
           </div>
