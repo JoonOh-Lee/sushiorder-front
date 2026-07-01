@@ -14,6 +14,7 @@ import StationManagePage from '../admin/StationManagePage'
 import StaffManagePage from '../admin/StaffManagePage'
 import TableLayoutPage from '../admin/TableLayoutPage'
 import AuditLogPage from '../admin/AuditLogPage'
+import OrderStatsPage from '../admin/OrderStatsPage'
 import { listStaffCalls, resolveStaffCall, type CallType, type StaffCall } from '../../api/staff/callApi'
 import {
   cancelStationItems,
@@ -612,6 +613,7 @@ function FloorBoardPage() {
             {adminPanel === 'staff' && <StaffManagePage onClose={() => setAdminPanel(null)} />}
             {adminPanel === 'table-layout' && <TableLayoutPage onClose={() => setAdminPanel(null)} />}
             {adminPanel === 'audit-log' && <AuditLogPage onClose={() => setAdminPanel(null)} />}
+            {adminPanel === 'order-stats' && <OrderStatsPage onClose={() => setAdminPanel(null)} />}
           </div>
         </div>
       )}
