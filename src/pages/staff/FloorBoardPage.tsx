@@ -25,7 +25,7 @@ import {
   type OrderStatus,
 } from '../../api/staff/orderApi'
 import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
-import { releaseTable } from '../../api/staff/admin/tableApi'
+import { releaseTable, reserveTable, cancelReservation } from '../../api/staff/admin/tableApi'
 import { closeSession } from '../../api/staff/admin/sessionApi'
 import { getLowStockMenus } from '../../api/staff/admin/menuApi'
 import { formatTime } from '../../utils/format'
@@ -262,6 +262,7 @@ function FloorBoardPage() {
   const [adminPanel, setAdminPanel] = useState<AdminPanelKey | null>(null)
   const [releasing, setReleasing] = useState(false)
   const [releaseConfirm, setReleaseConfirm] = useState(false)
+  const [reservingTableId, setReservingTableId] = useState<number | null>(null)
   const [lowStockCount, setLowStockCount] = useState(0)
   const isAdmin = auth?.role === 'ADMIN'
 
@@ -363,6 +364,30 @@ function FloorBoardPage() {
       })
   }
 
+  function handleReserveTable(table: RestaurantTable) {
+    setReservingTableId(table.id)
+    reserveTable(table.id)
+      .then(() => {
+        setTables((prev) => prev.map((t) => (t.id === table.id ? { ...t, status: 'RESERVED' } : t)))
+      })
+      .catch((err: unknown) => {
+        setActionError(err instanceof ApiError ? err.message : '예약 처리에 실패했습니다.')
+      })
+      .finally(() => setReservingTableId(null))
+  }
+
+  function handleCancelReservation(table: RestaurantTable) {
+    setReservingTableId(table.id)
+    cancelReservation(table.id)
+      .then(() => {
+        setTables((prev) => prev.map((t) => (t.id === table.id ? { ...t, status: 'EMPTY' } : t)))
+      })
+      .catch((err: unknown) => {
+        setActionError(err instanceof ApiError ? err.message : '예약 취소에 실패했습니다.')
+      })
+      .finally(() => setReservingTableId(null))
+  }
+
   function handleReleaseTable(table: RestaurantTable) {
     if (!releaseConfirm) { setReleaseConfirm(true); return }
     setReleasing(true)
@@ -402,7 +427,7 @@ function FloorBoardPage() {
     if (hasMyActive) return 'bg-accent-400 text-white'
     if (hasAnyActive) return 'bg-primary-600 text-white'
     if (table.status === 'OCCUPIED') return 'bg-ink/15 text-ink'
-    if (table.status === 'RESERVED') return 'bg-amber-200 text-ink'
+    if (table.status === 'RESERVED') return 'bg-purple-200 text-purple-900'
     return 'border border-primary-100 bg-surface text-muted'
   }
 
@@ -471,6 +496,9 @@ function FloorBoardPage() {
           <span className="flex items-center gap-1">
             <span className="h-2.5 w-2.5 rounded-full bg-ink/30" /> 착석
           </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-purple-300" /> 예약
+          </span>
           {coveringStationIds.length > 0 && (
             <span className="ml-auto text-muted">
               커버 중: {coveringStationIds.map(stationNameFor).join(', ')}
@@ -533,16 +561,25 @@ function FloorBoardPage() {
             {selectedTable && (
               <div className="absolute inset-x-4 bottom-4 z-20 max-h-[55%] overflow-y-auto rounded-card bg-surface-raised p-4 shadow-2xl">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-bold text-ink">
-                    {formatSeatLabel(selectedTable.seatType, selectedTable.tableNumber)}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold text-ink">
+                      {formatSeatLabel(selectedTable.seatType, selectedTable.tableNumber)}
+                    </h2>
+                    {selectedTable.status === 'RESERVED' && (
+                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                        예약
+                      </span>
+                    )}
+                  </div>
                   <button type="button" onClick={() => setSelectedTableId(null)} className="text-sm text-muted">
                     닫기
                   </button>
                 </div>
 
                 {selectedTableCalls.length === 0 && selectedTableOrders.length === 0 && (
-                  <p className="mt-3 text-sm text-muted">처리할 호출/주문이 없습니다.</p>
+                  <p className="mt-3 text-sm text-muted">
+                    {selectedTable.status === 'RESERVED' ? '예약된 테이블입니다.' : '처리할 호출/주문이 없습니다.'}
+                  </p>
                 )}
 
                 {selectedTableCalls.length > 0 && (
@@ -593,6 +630,32 @@ function FloorBoardPage() {
                       }`}
                     >
                       {releasing ? '처리 중...' : releaseConfirm ? '한 번 더 누르면 퇴석 처리됩니다' : '퇴석 처리'}
+                    </button>
+                  </div>
+                )}
+
+                {/* 예약 관리 (어드민 전용) */}
+                {isAdmin && selectedTable.status === 'EMPTY' && (
+                  <div className="mt-4 border-t border-primary-100 pt-4">
+                    <button
+                      type="button"
+                      disabled={reservingTableId === selectedTable.id}
+                      onClick={() => handleReserveTable(selectedTable)}
+                      className="w-full rounded-full bg-purple-500 py-3 text-sm font-semibold text-white transition-colors active:scale-95 disabled:opacity-50"
+                    >
+                      {reservingTableId === selectedTable.id ? '처리 중...' : '예약 설정'}
+                    </button>
+                  </div>
+                )}
+                {isAdmin && selectedTable.status === 'RESERVED' && (
+                  <div className="mt-4 border-t border-primary-100 pt-4">
+                    <button
+                      type="button"
+                      disabled={reservingTableId === selectedTable.id}
+                      onClick={() => handleCancelReservation(selectedTable)}
+                      className="w-full rounded-full bg-ink/8 py-3 text-sm font-semibold text-ink transition-colors active:scale-95 disabled:opacity-50"
+                    >
+                      {reservingTableId === selectedTable.id ? '처리 중...' : '예약 취소'}
                     </button>
                   </div>
                 )}
