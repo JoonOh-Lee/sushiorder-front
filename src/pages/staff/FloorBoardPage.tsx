@@ -427,7 +427,7 @@ function FloorBoardPage() {
     if (hasMyActive) return 'bg-accent-400 text-white'
     if (hasAnyActive) return 'bg-primary-600 text-white'
     if (table.status === 'OCCUPIED') return 'bg-ink/15 text-ink'
-    if (table.status === 'RESERVED') return 'bg-amber-200 text-ink'
+    if (table.status === 'RESERVED') return 'bg-purple-200 text-purple-900'
     return 'border border-primary-100 bg-surface text-muted'
   }
 
@@ -497,7 +497,7 @@ function FloorBoardPage() {
             <span className="h-2.5 w-2.5 rounded-full bg-ink/30" /> 착석
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-300" /> 예약
+            <span className="h-2.5 w-2.5 rounded-full bg-purple-300" /> 예약
           </span>
           {coveringStationIds.length > 0 && (
             <span className="ml-auto text-muted">
@@ -566,7 +566,7 @@ function FloorBoardPage() {
                       {formatSeatLabel(selectedTable.seatType, selectedTable.tableNumber)}
                     </h2>
                     {selectedTable.status === 'RESERVED' && (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                      <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-700">
                         예약
                       </span>
                     )}
@@ -641,7 +641,7 @@ function FloorBoardPage() {
                       type="button"
                       disabled={reservingTableId === selectedTable.id}
                       onClick={() => handleReserveTable(selectedTable)}
-                      className="w-full rounded-full bg-amber-400 py-3 text-sm font-semibold text-white transition-colors active:scale-95 disabled:opacity-50"
+                      className="w-full rounded-full bg-purple-500 py-3 text-sm font-semibold text-white transition-colors active:scale-95 disabled:opacity-50"
                     >
                       {reservingTableId === selectedTable.id ? '처리 중...' : '예약 설정'}
                     </button>
