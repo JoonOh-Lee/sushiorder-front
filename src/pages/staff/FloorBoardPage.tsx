@@ -27,6 +27,7 @@ import {
 import { listTables, type RestaurantTable } from '../../api/staff/tableApi'
 import { releaseTable } from '../../api/staff/admin/tableApi'
 import { closeSession } from '../../api/staff/admin/sessionApi'
+import { getLowStockMenus } from '../../api/staff/admin/menuApi'
 import { formatTime } from '../../utils/format'
 import ConveyorRail from '../../staff/ConveyorRail'
 import { formatSeatLabel } from '../../staff/seatLabel'
@@ -261,6 +262,8 @@ function FloorBoardPage() {
   const [adminPanel, setAdminPanel] = useState<AdminPanelKey | null>(null)
   const [releasing, setReleasing] = useState(false)
   const [releaseConfirm, setReleaseConfirm] = useState(false)
+  const [lowStockCount, setLowStockCount] = useState(0)
+  const isAdmin = auth?.role === 'ADMIN'
 
   useEffect(() => {
     if (!auth) {
@@ -312,6 +315,13 @@ function FloorBoardPage() {
     const timer = setTimeout(() => setActionError(''), ACTION_ERROR_DISPLAY_MS)
     return () => clearTimeout(timer)
   }, [actionError])
+
+  useEffect(() => {
+    if (!isAdmin || adminPanel !== null) return
+    getLowStockMenus()
+      .then((items) => setLowStockCount(items.length))
+      .catch(() => {})
+  }, [adminPanel, isAdmin])
 
   function addCoverage(id: number) {
     setCoveringStationIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
@@ -436,6 +446,16 @@ function FloorBoardPage() {
       <StaffHeader onOpenPanel={setAdminPanel} />
 
       {actionError && <p className="bg-red-50 px-4 py-2 text-center text-sm text-red-600">{actionError}</p>}
+      {isAdmin && lowStockCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setAdminPanel('menu')}
+          className="flex w-full items-center justify-between border-b border-amber-100 bg-amber-50 px-4 py-2 text-left text-sm text-amber-800"
+        >
+          <span>⚠ 재고 부족 메뉴 {lowStockCount}개</span>
+          <span className="text-xs font-semibold text-amber-700">메뉴 관리 →</span>
+        </button>
+      )}
 
       {status === 'ready' && stationId !== null && (
         <div className="flex flex-wrap items-center gap-3 border-b border-primary-100 bg-surface-raised px-3 py-1.5 text-[11px] text-muted">
