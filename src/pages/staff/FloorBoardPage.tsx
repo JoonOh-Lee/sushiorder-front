@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { usePolling } from '../../hooks/usePolling'
+import { useStompOrders } from '../../hooks/useStompOrders'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../api/types'
 import { listFloorPlanElements, type FloorPlanElement, type FloorPlanElementType } from '../../api/staff/floorPlanElementApi'
@@ -304,6 +305,25 @@ function FloorBoardPage() {
 
   usePolling(loadAll, POLL_INTERVAL_MS, !!auth && auth.stationId !== null)
 
+  function handleOrderUpdate(order: Order) {
+    setOrders((prev) => {
+      const allTerminal = order.items.every(
+        (item) => item.status === 'CANCELLED' || item.status === 'COMPLETED',
+      )
+      if (allTerminal) return prev.filter((o) => o.id !== order.id)
+      const idx = prev.findIndex((o) => o.id === order.id)
+      if (idx === -1) {
+        return [...prev, order].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      }
+      return prev.map((o) => (o.id === order.id ? order : o))
+    })
+  }
+
+  const { connected: wsConnected } = useStompOrders(
+    handleOrderUpdate,
+    !!auth && auth.stationId !== null,
+  )
+
   useEffect(() => {
     const handler = (e: Event) =>
       setRailDirection((e as CustomEvent<RailDirection>).detail)
@@ -499,8 +519,12 @@ function FloorBoardPage() {
           <span className="flex items-center gap-1">
             <span className="h-2.5 w-2.5 rounded-full bg-purple-300" /> 예약
           </span>
+          <span className="ml-auto flex items-center gap-1">
+            <span className={`h-2 w-2 rounded-full ${wsConnected ? 'bg-green-400' : 'bg-ink/30'}`} />
+            <span>{wsConnected ? '실시간' : '폴링'}</span>
+          </span>
           {coveringStationIds.length > 0 && (
-            <span className="ml-auto text-muted">
+            <span className="text-muted">
               커버 중: {coveringStationIds.map(stationNameFor).join(', ')}
             </span>
           )}
