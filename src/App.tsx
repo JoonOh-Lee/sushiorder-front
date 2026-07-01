@@ -9,6 +9,7 @@ import NoticeManagePage from './pages/admin/NoticeManagePage'
 import StationManagePage from './pages/admin/StationManagePage'
 import StaffManagePage from './pages/admin/StaffManagePage'
 import AuditLogPage from './pages/admin/AuditLogPage'
+import OrderStatsPage from './pages/admin/OrderStatsPage'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
       <Route path="/admin/station" element={<StationManagePage />} />
       <Route path="/admin/staff" element={<StaffManagePage />} />
       <Route path="/admin/audit-log" element={<AuditLogPage />} />
+      <Route path="/admin/order-stats" element={<OrderStatsPage />} />
       <Route path="/staff" element={<FloorBoardPage />} />
     </Routes>
   )
