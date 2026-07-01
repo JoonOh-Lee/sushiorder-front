@@ -4,11 +4,12 @@ import { clearStaffAuth, getStaffAuth, updateStaffAuthOnDuty, updateStaffAuthSta
 import { assignMyStation, listStations, setMyDuty, type Station } from '../api/staff/stationApi'
 import { ApiError } from '../api/types'
 
-export type AdminPanelKey = 'menu' | 'notice' | 'station' | 'staff' | 'table-layout' | 'audit-log'
+export type AdminPanelKey = 'menu' | 'notice' | 'station' | 'staff' | 'table-layout' | 'audit-log' | 'order-stats'
 
 const ROLE_LABEL = { STAFF: '직원', ADMIN: '관리자' }
 
 const ADMIN_ITEMS: { label: string; key: AdminPanelKey; path: string }[] = [
+  { label: '매출 통계', key: 'order-stats', path: '/admin/order-stats' },
   { label: '메뉴 관리', key: 'menu', path: '/admin/menu' },
   { label: '공지사항 관리', key: 'notice', path: '/admin/notice' },
   { label: '스테이션 관리', key: 'station', path: '/admin/station' },

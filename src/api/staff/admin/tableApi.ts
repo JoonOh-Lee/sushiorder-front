@@ -21,6 +21,14 @@ export function releaseTable(tableId: number): Promise<void> {
   return staffFetch<void>(`/api/v1/admin/table/${tableId}/release`, { method: 'PATCH' })
 }
 
+export function reserveTable(tableId: number): Promise<void> {
+  return staffFetch<void>(`/api/v1/admin/table/${tableId}/reserve`, { method: 'PATCH' })
+}
+
+export function cancelReservation(tableId: number): Promise<void> {
+  return staffFetch<void>(`/api/v1/admin/table/${tableId}/cancel-reservation`, { method: 'PATCH' })
+}
+
 export async function fetchTableQrBlobUrl(tableId: number): Promise<string> {
   const token = getStaffToken()
   const res = await fetch(`${API_BASE_URL}/api/v1/admin/table/${tableId}/qr`, {
