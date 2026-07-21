@@ -103,7 +103,7 @@ function OrderEntryPage() {
   const cartTotal = cartEntries.reduce((sum, entry) => sum + entry.menu.price * entry.quantity, 0)
 
   return (
-    <div className="min-h-screen bg-surface pb-24">
+    <div className={`min-h-screen bg-surface ${cartCount > 0 ? 'pb-20' : ''}`}>
       <header className="flex items-center justify-between bg-white px-4 py-2 shadow-sm">
         <img src="/logo.png" alt="온다스시" className="h-20 w-auto object-contain" />
         <div className="flex items-center gap-2">
