@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sushi-front
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sushi-front
+  template:
+    metadata:
+      labels:
+        app: sushi-front
+    spec:
+      containers:
+        - name: sushi-front
+          image: sushi-front:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sushi-front
+spec:
+  selector:
+    app: sushi-front
+  ports:
+    - port: 3000
+      targetPort: 80
+  type: NodePort
