@@ -105,7 +105,7 @@ function OrderEntryPage() {
   return (
     <div className={`min-h-screen bg-surface ${cartCount > 0 ? 'pb-20' : ''}`}>
       <header className="flex items-center justify-between bg-white px-4 py-2 shadow-sm">
-        <img src="/logo.png" alt="온다스시" className="h-20 w-auto object-contain" />
+        <img src="/logo.png" alt="스시오더" className="h-20 w-auto object-contain" />
         <div className="flex items-center gap-2">
           <CallStaffButton />
           <button
